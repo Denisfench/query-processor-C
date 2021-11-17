@@ -15,6 +15,9 @@ unordered_map <string, tuple<int, int, int>> lexicon;
 const string testIndexFileName = "test_index.bin";
 
 
+template <typename T>
+void printVec(T vec);
+
 vector<char> read_com(ifstream& infile){
     char c;
     vector<char> result;
@@ -154,22 +157,33 @@ void loadLexicon() {
     }
 }
 
+
 vector<int> openList(string term) {
     vector<int> invertedList;
-    fstream indexReader(indexFileName, ios::in | ios::binary);
+    vector<char> encodedInvertedList;
+
+    ifstream indexReader(indexFileName, ios::binary);
     if (!indexReader.is_open())
         cerr << "Error opening index file " << endl;
     // retrieve the term data from the lexicon
     tuple <int, int, int> termData = lexicon.at(term);
     int startList = get<0>(termData);
     int endList = get<1>(termData);
+    cout << "Term is " << term << endl;
+    cout << "The start of the list is " << startList << endl;
+    cout << "The end of the list is " << endList << endl;
     // seekg sets the read pointer
-    indexReader.seekp(startList);
-    int nextInt;
-    while (indexReader.tellp() != endList) {
-        indexReader.read((char*)& nextInt, sizeof(int));
-        invertedList.push_back(nextInt);
+    indexReader.seekg(startList);
+    char nextByte;
+    int numBytesToRead = endList - startList + 1;
+    int count = 0;
+//    myFile.seekg(6, ios::beg);
+    while (count < numBytesToRead) {
+        indexReader.get(nextByte);
+        encodedInvertedList.push_back(nextByte);
+        count++;
     }
+    invertedList = VBDecodeList(encodedInvertedList);
     return invertedList;
 }
 
@@ -194,24 +208,36 @@ vector<int> loadAndPrintIndex() {
     return VBDecodeList(invertedList);
 }
 
+
+template <typename T>
+void printVec(T vec) {
+    cout << "Printing the vector " << endl;
+    for (auto elem : vec)
+        cout << elem << endl;
+}
+
+
 int main() {
     cout << "The main begins!" << std::endl;
-//    loadLexicon();
+    loadLexicon();
+    vector<int> invList = openList("suffered");
+    printVec(invList);
 //    VBEncode(9999);
 ////    vector<int> decoded = VBDecodeList();
 //    vector<int> lex = loadAndPrintIndex();
 //    for (auto i : lex)
 //        cout << i << endl;
-    uint8_t a = 255;
-    vector<char> c;
-    vector<int> i;
-    int in;
-    cin >> in;
-    VBEncode(in);
-    i = VBDecode(testIndexFileName);
-    for (int & it : i) {
-        cout << "result " << it << endl;
-    }
+
+//    uint8_t a = 255;
+//    vector<char> c;
+//    vector<int> i;
+//    int in;
+//    cin >> in;
+//    VBEncode(in);
+//    i = VBDecode(testIndexFileName);
+//    for (int & it : i)
+//        cout << "result " << it << endl;
+
     return 0;
 }
 

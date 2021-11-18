@@ -28,7 +28,7 @@ vector<char> read_com(ifstream& infile){
 }
 
 void write(vector<uint8_t> num, ofstream& ofile){
-    for(vector<uint8_t>::iterator it = num.begin(); it != num.end(); it++){
+    for(auto it = num.begin(); it != num.end(); it++){
         ofile.write(reinterpret_cast<const char*>(&(*it)), 1);
     }
     ofile.close();
@@ -42,9 +42,10 @@ vector<int> VBDecode(string filename){
     int num;
     int p;
     vector<int> result;
+    cout << "Reading the file " << endl;
     vector<char> vec = read_com(ifile);
-
-    for(vector<char>::iterator it = vec.begin(); it != vec.end(); it++){
+    cout << "Decoding the file " << endl;
+    for(auto it = vec.begin(); it != vec.end(); it++) {
         c = *it;
         bitset<8> byte(c);
         num = 0;
@@ -52,14 +53,14 @@ vector<int> VBDecode(string filename){
         while(byte[7] == 1){
             byte.flip(7);
             num += byte.to_ulong()*pow(128, p);
-            cout << "num " << num << endl;
+//            cout << "num " << num << endl;
             p++;
             it ++;
             c = *it;
             byte = bitset<8>(c);
         }
         num += (byte.to_ulong())*pow(128, p);
-
+//        cout << "The decoded value is " << num << endl;
         result.push_back(num);
     }
     return result;
@@ -95,7 +96,7 @@ vector<int> VBDecodeList(vector<char>& encodedData){
 
 void VBEncode(unsigned int num){
     ofstream ofile;
-    ofile.open(testIndexFileName, ios::binary);
+    ofile.open("test.bin", ios::binary);
     vector<uint8_t> result;
     uint8_t b;
     while(num >= 128){
@@ -158,11 +159,11 @@ void loadLexicon() {
 }
 
 
-vector<int> openList(string term) {
+vector<char> openList(string term) {
     vector<int> invertedList;
     vector<char> encodedInvertedList;
 
-    ifstream indexReader(indexFileName, ios::binary);
+    ifstream indexReader(indexFileName);
     if (!indexReader.is_open())
         cerr << "Error opening index file " << endl;
     // retrieve the term data from the lexicon
@@ -172,19 +173,30 @@ vector<int> openList(string term) {
     cout << "Term is " << term << endl;
     cout << "The start of the list is " << startList << endl;
     cout << "The end of the list is " << endList << endl;
+
+    // seekg TEST
     // seekg sets the read pointer
-    indexReader.seekg(startList);
+//    indexReader.seekg(2, ios::beg);
+//    indexReader.get(nextByte);
+//    cout << "The next byte is " << nextByte << endl;
+//    indexReader.get(nextByte);
+//    cout << "The following byte is " << nextByte << endl;
+    // seekg TEST END
+
     char nextByte;
     int numBytesToRead = endList - startList + 1;
     int count = 0;
-//    myFile.seekg(6, ios::beg);
+
+    indexReader.seekg(startList, ios::beg);
+
     while (count < numBytesToRead) {
         indexReader.get(nextByte);
+        cout << "The next byte is " << nextByte << endl;
         encodedInvertedList.push_back(nextByte);
         count++;
     }
-    invertedList = VBDecodeList(encodedInvertedList);
-    return invertedList;
+//    invertedList = VBDecodeList(encodedInvertedList);
+    return encodedInvertedList;
 }
 
 
@@ -211,19 +223,34 @@ vector<int> loadAndPrintIndex() {
 
 template <typename T>
 void printVec(T vec) {
-    cout << "Printing the vector " << endl;
+    cout << "Printing the " << endl;
     for (auto elem : vec)
         cout << elem << endl;
 }
 
 
+// a function that processes a conjunctive query
+// and a returns a list of documents containing all the
+// terms in a query
+//vector<int> processConjunctive()
+
+
 int main() {
     cout << "The main begins!" << std::endl;
-    loadLexicon();
-    vector<int> invList = openList("suffered");
-    printVec(invList);
-//    VBEncode(9999);
-////    vector<int> decoded = VBDecodeList();
+//    loadLexicon();
+//    vector<char> invList = openList("suffered");
+//    printVec(invList);
+
+// TEST
+//vector<int> decodedFile = VBDecode(indexFileName);
+//printVec(decodedFile);
+// TEST
+
+// VAR BYTE TEST
+//    VBEncode(888);
+//    vector<int> decoded = VBDecode("test.bin");
+////    vector<int> decoded = VBDecode("test_index.bin");
+//    printVec(decoded);
 //    vector<int> lex = loadAndPrintIndex();
 //    for (auto i : lex)
 //        cout << i << endl;

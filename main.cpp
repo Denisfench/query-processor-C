@@ -7,16 +7,50 @@
 #include <cstdlib>
 using namespace std;
 
-const string indexFileName = "test_index.bin";
-const string lexiconFileName = "test_lexicon.txt";
-const char tabDelim = '\t';
-const char commaDelim = ',';
+const string indexFileName = "index.bin";
+const string lexiconFileName = "lexicon.txt";
+const char comma = ',';
+const char space = ' ';
+const char tab = '\t';
+const char newline = '\n';
 unordered_map <string, tuple<int, int, int>> lexicon;
 const string testIndexFileName = "test_index.bin";
 
 
 template <typename T>
 void printVec(T vec);
+
+void printLexicon();
+
+ifstream indexReader(indexFileName);
+
+// declare the function prototypes
+void loadLexicon();
+
+vector<char> openList(string term);
+
+vector<int> VBDecodeVec(const vector<char>& encodedData);
+
+int main() {
+    cout << "The main begins!" << std::endl;
+
+    // error check the streams
+    if (!indexReader.is_open()) {
+        cerr << "Error opening the index file " << endl;
+        exit(1);
+    }
+
+    loadLexicon();
+
+    vector<char> invList = openList("suffered");
+    vector<int> decodedList = VBDecodeVec(invList);
+    printVec(decodedList);
+
+    // close the streams
+    indexReader.close();
+    return 0;
+}
+
 
 vector<char> read_com(ifstream& infile){
     char c;
@@ -35,45 +69,13 @@ void write(vector<uint8_t> num, ofstream& ofile){
 }
 
 
-vector<int> VBDecode(string filename){
-    ifstream ifile;
-    ifile.open(filename, ios::binary);
-    char c;
-    int num;
-    int p;
-    vector<int> result;
-    cout << "Reading the file " << endl;
-    vector<char> vec = read_com(ifile);
-    cout << "Decoding the file " << endl;
-    for(auto it = vec.begin(); it != vec.end(); it++) {
-        c = *it;
-        bitset<8> byte(c);
-        num = 0;
-        p = 0;
-        while(byte[7] == 1){
-            byte.flip(7);
-            num += byte.to_ulong()*pow(128, p);
-//            cout << "num " << num << endl;
-            p++;
-            it ++;
-            c = *it;
-            byte = bitset<8>(c);
-        }
-        num += (byte.to_ulong())*pow(128, p);
-//        cout << "The decoded value is " << num << endl;
-        result.push_back(num);
-    }
-    return result;
-}
-
-
-vector<int> VBDecodeList(vector<char>& encodedData){
+vector<int> VBDecodeVec(const vector<char>& encodedData) {
     vector<int> result;
     char c;
     int num;
     int p;
 
-    for(vector<char>::iterator it = encodedData.begin(); it != encodedData.end(); it++) {
+    for(auto it = encodedData.begin(); it != encodedData.end(); it++) {
         c = *it;
         bitset<8> byte(c);
         num = 0;
@@ -94,29 +96,6 @@ vector<int> VBDecodeList(vector<char>& encodedData){
 }
 
 
-void VBEncode(unsigned int num){
-    ofstream ofile;
-    ofile.open("test.bin", ios::binary);
-    vector<uint8_t> result;
-    uint8_t b;
-    while(num >= 128){
-        int a = num % 128;
-        bitset<8> byte(a);
-        byte.flip(7);
-        num = (num - a) / 128;
-        b = byte.to_ulong();
-        cout << byte << endl;
-        result.push_back(b);
-    }
-    int a = num % 128;
-    bitset<8> byte(a);
-    cout << byte << endl;
-    b = byte.to_ulong();
-    result.push_back(b);
-    write(result, ofile);
-}
-
-
 void loadLexicon() {
     fstream lexiconReader(lexiconFileName, ios::in);
     if (!lexiconReader.is_open())
@@ -132,9 +111,10 @@ void loadLexicon() {
     int numTerms;
     // read a line from the lexicon
     while (getline(lexiconReader, line)) {
+        if (line.length() == 0) continue;
         // parse the line
-        while ((start = line.find_first_not_of(tabDelim, end)) != string::npos) {
-            end = line.find(tabDelim, start);
+        while ((start = line.find_first_not_of(tab, end)) != string::npos) {
+            end = line.find(tab, start);
             temp.push_back(line.substr(start, end - start));
         }
         // process the data
@@ -142,8 +122,8 @@ void loadLexicon() {
         termData = temp.at(1);
         temp.clear();
         end = 0;
-        while ((start = termData.find_first_not_of(commaDelim, end)) != string::npos) {
-            end = termData.find(commaDelim, start);
+        while ((start = termData.find_first_not_of(space, end)) != string::npos) {
+            end = termData.find(space, start);
             temp.push_back(termData.substr(start, end - start));
         }
         stringstream termStartStream(temp.at(0));
@@ -156,6 +136,8 @@ void loadLexicon() {
         temp.clear();
         end = 0;
     }
+    // close the stream
+    lexiconReader.close();
 }
 
 
@@ -163,25 +145,10 @@ vector<char> openList(string term) {
     vector<int> invertedList;
     vector<char> encodedInvertedList;
 
-    ifstream indexReader(indexFileName);
-    if (!indexReader.is_open())
-        cerr << "Error opening index file " << endl;
     // retrieve the term data from the lexicon
     tuple <int, int, int> termData = lexicon.at(term);
     int startList = get<0>(termData);
     int endList = get<1>(termData);
-    cout << "Term is " << term << endl;
-    cout << "The start of the list is " << startList << endl;
-    cout << "The end of the list is " << endList << endl;
-
-    // seekg TEST
-    // seekg sets the read pointer
-//    indexReader.seekg(2, ios::beg);
-//    indexReader.get(nextByte);
-//    cout << "The next byte is " << nextByte << endl;
-//    indexReader.get(nextByte);
-//    cout << "The following byte is " << nextByte << endl;
-    // seekg TEST END
 
     char nextByte;
     int numBytesToRead = endList - startList + 1;
@@ -191,11 +158,10 @@ vector<char> openList(string term) {
 
     while (count < numBytesToRead) {
         indexReader.get(nextByte);
-        cout << "The next byte is " << nextByte << endl;
         encodedInvertedList.push_back(nextByte);
         count++;
     }
-//    invertedList = VBDecodeList(encodedInvertedList);
+
     return encodedInvertedList;
 }
 
@@ -217,15 +183,14 @@ vector<int> loadAndPrintIndex() {
         indexReader.read((char*)& nextInt, sizeof(int));
         invertedList.push_back(nextInt);
     }
-    return VBDecodeList(invertedList);
+    return VBDecodeVec(invertedList);
 }
 
 
 template <typename T>
 void printVec(T vec) {
-    cout << "Printing the " << endl;
     for (auto elem : vec)
-        cout << elem << endl;
+        cout << elem << comma << space;
 }
 
 
@@ -235,36 +200,14 @@ void printVec(T vec) {
 //vector<int> processConjunctive()
 
 
-int main() {
-    cout << "The main begins!" << std::endl;
-//    loadLexicon();
-//    vector<char> invList = openList("suffered");
-//    printVec(invList);
+void printTuple(const string& term, const tuple<int, int, int>& entry) {
+    cout << term << tab << get<0>(entry) << " " << get<1>(entry) << " " << get<2>(entry) << newline;
+}
 
-// TEST
-//vector<int> decodedFile = VBDecode(indexFileName);
-//printVec(decodedFile);
-// TEST
 
-// VAR BYTE TEST
-//    VBEncode(888);
-//    vector<int> decoded = VBDecode("test.bin");
-////    vector<int> decoded = VBDecode("test_index.bin");
-//    printVec(decoded);
-//    vector<int> lex = loadAndPrintIndex();
-//    for (auto i : lex)
-//        cout << i << endl;
-
-//    uint8_t a = 255;
-//    vector<char> c;
-//    vector<int> i;
-//    int in;
-//    cin >> in;
-//    VBEncode(in);
-//    i = VBDecode(testIndexFileName);
-//    for (int & it : i)
-//        cout << "result " << it << endl;
-
-    return 0;
+void printLexicon() {
+    for (auto const& entry: lexicon) {
+        printTuple(entry.first, entry.second);
+    }
 }
 

@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstdlib>
 #include <queue>
+#include <set>
 using namespace std;
 
 const string indexFileName = "index.bin";
@@ -43,7 +44,7 @@ vector<int> VBDecodeVec(const vector<char>& encodedData);
 vector<int> VBDecodeFile(string filename);
 int getDocLength(const string& document);
 vector<int> processConjunctive(const string& query);
-
+vector<int> processDisjunctive(const string& query);
 
 int getTermFreq(string term);
 
@@ -76,8 +77,13 @@ int main() {
 
     cout << endl;
 
-    vector<int> result = processConjunctive("take which");
-    printVec(result);
+    // testing conjunctive
+//    vector<int> result = processConjunctive("take which");
+//    printVec(result);
+
+// testing disjunctive
+//    vector<int> result = processDisjunctive("take which");
+//    printVec(result);
 
 // file decoding test
 //    vector<int> decodedIndexFile = VBDecodeFile(indexFileName);
@@ -326,6 +332,29 @@ vector<int> processConjunctive(const string& query) {
     return result;
 }
 
+
+vector<int> processDisjunctive(const string& query) {
+    set<int> uniqDocs;
+    vector<int> result;
+    stringstream lineStream(query);
+    string term;
+    lineStream >> term;
+    vector<char> firstInvList = openList(term);
+    vector<int> firstDecodedList = VBDecodeVec(firstInvList);
+    lineStream >> term;
+    vector<char> secInvList = openList(term);
+    vector<int> secDecodedList = VBDecodeVec(secInvList);
+    for (vector<char>::iterator it = firstInvList.begin(); it != firstInvList.end(); it += 2)
+        uniqDocs.insert(*it);
+
+    for (vector<char>::iterator it = secInvList.begin(); it != secInvList.end(); it += 2)
+        uniqDocs.insert(*it);
+
+    for (auto itr = uniqDocs.begin(); itr != uniqDocs.end(); itr++)
+        result.push_back(*itr);
+
+    return result;
+}
 
 void printTuple(const string& term, const tuple<int, int, int>& entry) {
     cout << term << tab << get<0>(entry) << " " << get<1>(entry) << " " << get<2>(entry) << newline;

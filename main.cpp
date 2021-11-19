@@ -13,17 +13,23 @@ const string indexFileName = "index.bin";
 const string lexiconFileName = "lexicon.txt";
 const string testIndexFileName = "test_index.bin";
 const string urlsFileName = "test_urls.txt";
+const string docPositionsFilename = "doc_locations.txt";
+
 const char comma = ',';
 const char space = ' ';
 const char tab = '\t';
 const char newline = '\n';
-const int N = 777;
-const int averageDocLength = 222;
+const int N = 3213835;
+const int averageDocLength = 200;
 const float k1 = 2;
 const float b = 0.75;
+const char CONJUNCTIVE = 'C';
+const char DISJUNCTIVE = 'D';
 
 unordered_map <string, tuple<int, int, int>> lexicon;
 unordered_map <int, string> URLs;
+unordered_map <string, tuple<long, long>> docLocations;
+
 // <docId : docRank>
 priority_queue<tuple <int, int>> result;
 
@@ -35,6 +41,7 @@ void printLexicon();
 // index is the binary file
 ifstream indexReader(indexFileName, ios::binary);
 ifstream URLsInStream(urlsFileName);
+ifstream docPositionsStream(docPositionsFilename);
 
 // declare the function prototypes
 void loadLexicon();
@@ -42,11 +49,15 @@ void loadUrls();
 vector<char> openList(string term);
 vector<int> VBDecodeVec(const vector<char>& encodedData);
 vector<int> VBDecodeFile(string filename);
-int getDocLength(const string& document);
-vector<int> processConjunctive(const string& query);
-vector<int> processDisjunctive(const string& query);
+int getDocLength(int document);
+tuple<vector<int>, int > processConjunctive(const string& query);
+tuple<vector<int>, int > processDisjunctive(const string& query);
+int getTermFreq(const tuple<vector<int>, int> & docs);
 
+void rankPages(const vector<int>& docs);
 int getTermFreq(string term);
+void loadDocLocations();
+void printDocLocations();
 
 int main() {
     cout << "The main begins!" << std::endl;
@@ -58,24 +69,49 @@ int main() {
     }
 
     loadLexicon();
+    loadUrls();
+    loadDocLocations();
+    printDocLocations();
 
+    char mode;
+    cout << "Would you like to run conjunctive or disjunctive query? [C] or [D]" << endl;
+    cin >> mode;
+    string query;
+    cout << "Please enter your query" << endl;
+    cin >> query;
+
+//    stringstream queryStream(query);
+//    string firstTerm;
+//    queryStream >> firstTerm;
+//    string secTerm;
+//    queryStream >> secTerm;
+
+    tuple<vector<int>, int > result;
+
+    if (mode == CONJUNCTIVE) {
+        result = processConjunctive(query);
+    }
+    else
+        result = processDisjunctive(query);
+
+//    rankPages(result);
     // queue test
 //    result.push(make_pair(3, 40));
 //    cout << "the top the queue is : " << get<0>(result.top()) << " " << get<1>(result.top()) << endl;
 
-
+// **************************************************************************
     // test openList() API
-    vector<char> fInvList = openList("take");
-    vector<int> fDecodedList = VBDecodeVec(fInvList);
-    printVec(fDecodedList);
-
-    cout << endl;
-
-    vector<char> sInvList = openList("which");
-    vector<int> sDecodedList = VBDecodeVec(sInvList);
-    printVec(sDecodedList);
-
-    cout << endl;
+//    vector<char> fInvList = openList("take");
+//    vector<int> fDecodedList = VBDecodeVec(fInvList);
+//    printVec(fDecodedList);
+//
+//    cout << endl;
+//
+//    vector<char> sInvList = openList("which");
+//    vector<int> sDecodedList = VBDecodeVec(sInvList);
+//    printVec(sDecodedList);
+//
+//    cout << endl;
 
     // testing conjunctive
 //    vector<int> result = processConjunctive("take which");
@@ -88,34 +124,35 @@ int main() {
 // file decoding test
 //    vector<int> decodedIndexFile = VBDecodeFile(indexFileName);
 //    printVec(decodedIndexFile);
-
+// ***********************************************************************
     // close the streams
     indexReader.close();
     URLsInStream.close();
+    docPositionsStream.close();
 
     return 0;
 }
 
-
-// retrieves the frequency of the term in the collection
-int getTermFreq(string term) {
-    // sum up the entries in the decoded inverted list for the term that will be loaded in memory
-    return 99;
+void rankPages(const tuple<vector<int>, int> & docs) {
+    int termFreq = getTermFreq(docs);
 }
 
 
-int getDocLength(const string& document) {
-    // requires an extra loop over the document collection using program X
+// retrieves the frequency of the term in the collection
+int getTermFreq(const tuple<vector<int>, int> & docs) {
+    // sum up the entries in the decoded inverted list for the term that will be loaded in memory
+    return get<1>(docs);
+}
+
+
+int getDocLength(int docID) {
+    string docURL = URLs[docID];
+
     return 999;
 }
 
 
-int getTotalNumDocs() {
-    return 5555;
-}
-
-
-int BM25(const string& query, const string& document) {
+int BM25(const string& query, int document) {
     stringstream lineStream(query);
     int K = 0;
     int result = 0;
@@ -123,14 +160,12 @@ int BM25(const string& query, const string& document) {
     int termFreq;
     while (lineStream >> term) {
         K = k1 * ((1 - b) + b * getDocLength(document) / averageDocLength);
-        termFreq = getTermFreq(term);
+//        termFreq = getTermFreq(term);
+        termFreq = 100;
         result += log((N - termFreq + 0.5) / (termFreq + 0.5)) * ((k1 + 1) * termFreq / (K + termFreq));
     }
     return 99;
 }
-
-
-
 
 
 vector<char> read_com(ifstream& infile){
@@ -235,7 +270,30 @@ void loadUrls() {
         lineStream >> docId;
         URLs.insert(make_pair(docId, URL));
     }
+}
 
+
+void loadDocLocations() {
+    string line;
+    string URL;
+    long docStart;
+    long docEnd;
+    tuple <long, long> location;
+    while(getline(docPositionsStream, line)) {
+        stringstream lineStream(line);
+        lineStream >> URL;
+        lineStream >> docStart;
+        lineStream >> docEnd;
+        location = make_pair(docStart, docEnd);
+        docLocations.insert(make_pair(URL, location));
+    }
+}
+
+
+void printDocLocations() {
+    for (auto const &pair: docLocations)
+        cout << "{" << pair.first << ": " << get<0>(pair.second) <<
+             "," << get<1>(pair.second) << "}\n";
 }
 
 
@@ -296,7 +354,8 @@ void printVec(T vec) {
 // and a returns a list of documents containing all the
 // terms in a query
 // suppose there are 2 query terms for now
-vector<int> processConjunctive(const string& query) {
+tuple<vector<int>, int > processConjunctive(const string& query) {
+    int termFreq = 0;
     vector<int> result;
     stringstream lineStream(query);
     string term;
@@ -309,11 +368,15 @@ vector<int> processConjunctive(const string& query) {
     // <docID, termFreq>
     unordered_map <int, int> firstList;
     unordered_map <int, int> secList;
-    for (vector<char>::iterator it = firstInvList.begin(); it != firstInvList.end(); it += 2)
+    for (vector<char>::iterator it = firstInvList.begin(); it != firstInvList.end(); it += 2) {
+        termFreq += *(it + 1);
         firstList.insert(make_pair(*it, *(it + 1)));
+    }
 
-    for (vector<char>::iterator it = secInvList.begin(); it != secInvList.end(); it += 2)
+    for (vector<char>::iterator it = secInvList.begin(); it != secInvList.end(); it += 2) {
+        termFreq += *(it + 1);
         secList.insert(make_pair(*it, *(it + 1)));
+    }
 
     // find the documents containing both query terms
     // if the first lost is shorter, iterate over it
@@ -329,11 +392,12 @@ vector<int> processConjunctive(const string& query) {
                 result.push_back(entry->first);
         }
     }
-    return result;
+    return make_pair(result, termFreq);
 }
 
 
-vector<int> processDisjunctive(const string& query) {
+tuple<vector<int>, int > processDisjunctive(const string& query) {
+    int termFreq = 0;
     set<int> uniqDocs;
     vector<int> result;
     stringstream lineStream(query);
@@ -344,16 +408,19 @@ vector<int> processDisjunctive(const string& query) {
     lineStream >> term;
     vector<char> secInvList = openList(term);
     vector<int> secDecodedList = VBDecodeVec(secInvList);
-    for (vector<char>::iterator it = firstInvList.begin(); it != firstInvList.end(); it += 2)
+    for (vector<char>::iterator it = firstInvList.begin(); it != firstInvList.end(); it += 2) {
+        termFreq += *(it + 1);
         uniqDocs.insert(*it);
+    }
 
-    for (vector<char>::iterator it = secInvList.begin(); it != secInvList.end(); it += 2)
+    for (vector<char>::iterator it = secInvList.begin(); it != secInvList.end(); it += 2) {
+        termFreq += *(it + 1);
         uniqDocs.insert(*it);
-
+    }
     for (auto itr = uniqDocs.begin(); itr != uniqDocs.end(); itr++)
         result.push_back(*itr);
 
-    return result;
+    return make_pair(result, termFreq);;
 }
 
 void printTuple(const string& term, const tuple<int, int, int>& entry) {

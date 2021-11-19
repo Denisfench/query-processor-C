@@ -5,6 +5,7 @@
 #include <sstream>
 #include <vector>
 #include <cstdlib>
+#include <queue>
 using namespace std;
 
 const string indexFileName = "index.bin";
@@ -22,6 +23,8 @@ const float b = 0.75;
 
 unordered_map <string, tuple<int, int, int>> lexicon;
 unordered_map <int, string> URLs;
+// <docId : docRank>
+priority_queue<tuple <int, int>> result;
 
 template <typename T>
 void printVec(T vec);
@@ -39,6 +42,7 @@ vector<char> openList(string term);
 vector<int> VBDecodeVec(const vector<char>& encodedData);
 vector<int> VBDecodeFile(string filename);
 int getDocLength(const string& document);
+vector<int> processConjunctive(const string& query);
 
 
 int getTermFreq(string term);
@@ -54,10 +58,26 @@ int main() {
 
     loadLexicon();
 
+    // queue test
+//    result.push(make_pair(3, 40));
+//    cout << "the top the queue is : " << get<0>(result.top()) << " " << get<1>(result.top()) << endl;
+
+
     // test openList() API
-    vector<char> invList = openList("take");
-    vector<int> decodedList = VBDecodeVec(invList);
-    printVec(decodedList);
+    vector<char> fInvList = openList("take");
+    vector<int> fDecodedList = VBDecodeVec(fInvList);
+    printVec(fDecodedList);
+
+    cout << endl;
+
+    vector<char> sInvList = openList("which");
+    vector<int> sDecodedList = VBDecodeVec(sInvList);
+    printVec(sDecodedList);
+
+    cout << endl;
+
+    vector<int> result = processConjunctive("take which");
+    printVec(result);
 
 // file decoding test
 //    vector<int> decodedIndexFile = VBDecodeFile(indexFileName);
@@ -73,11 +93,19 @@ int main() {
 
 // retrieves the frequency of the term in the collection
 int getTermFreq(string term) {
+    // sum up the entries in the decoded inverted list for the term that will be loaded in memory
     return 99;
 }
 
+
 int getDocLength(const string& document) {
+    // requires an extra loop over the document collection using program X
     return 999;
+}
+
+
+int getTotalNumDocs() {
+    return 5555;
 }
 
 
@@ -94,6 +122,9 @@ int BM25(const string& query, const string& document) {
     }
     return 99;
 }
+
+
+
 
 
 vector<char> read_com(ifstream& infile){
@@ -258,7 +289,42 @@ void printVec(T vec) {
 // a function that processes a conjunctive query
 // and a returns a list of documents containing all the
 // terms in a query
-//vector<int> processConjunctive()
+// suppose there are 2 query terms for now
+vector<int> processConjunctive(const string& query) {
+    vector<int> result;
+    stringstream lineStream(query);
+    string term;
+    lineStream >> term;
+    vector<char> firstInvList = openList(term);
+    vector<int> firstDecodedList = VBDecodeVec(firstInvList);
+    lineStream >> term;
+    vector<char> secInvList = openList(term);
+    vector<int> secDecodedList = VBDecodeVec(secInvList);
+    // <docID, termFreq>
+    unordered_map <int, int> firstList;
+    unordered_map <int, int> secList;
+    for (vector<char>::iterator it = firstInvList.begin(); it != firstInvList.end(); it += 2)
+        firstList.insert(make_pair(*it, *(it + 1)));
+
+    for (vector<char>::iterator it = secInvList.begin(); it != secInvList.end(); it += 2)
+        secList.insert(make_pair(*it, *(it + 1)));
+
+    // find the documents containing both query terms
+    // if the first lost is shorter, iterate over it
+    if (firstList.size() < secList.size()) {
+        for (auto entry = firstList.begin(); entry != firstList.end(); entry++) {
+            if (secList.find(entry->first) != secList.end())
+                result.push_back(entry->first);
+        }
+    }
+    else {
+        for (auto entry = secList.begin(); entry != secList.end(); entry++) {
+            if (firstList.find(entry->first) != firstList.end())
+                result.push_back(entry->first);
+        }
+    }
+    return result;
+}
 
 
 void printTuple(const string& term, const tuple<int, int, int>& entry) {
@@ -282,7 +348,7 @@ vector<int> VBDecodeFile(string filename) {
     vector<int> result;
     vector<char> vec = read_com(ifile);
 
-    for(vector<char>::iterator it = vec.begin(); it != vec.end(); it++){
+    for(vector<char>::iterator it = vec.begin(); it != vec.end(); it++) {
         c = *it;
         bitset<8> byte(c);
         num = 0;

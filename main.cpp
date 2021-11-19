@@ -15,9 +15,13 @@ const char comma = ',';
 const char space = ' ';
 const char tab = '\t';
 const char newline = '\n';
+const int N = 777;
+const int averageDocLength = 222;
+const float k1 = 2;
+const float b = 0.75;
 
 unordered_map <string, tuple<int, int, int>> lexicon;
-unordered_map <string, int> URLs;
+unordered_map <int, string> URLs;
 
 template <typename T>
 void printVec(T vec);
@@ -29,14 +33,14 @@ ifstream URLsInStream(urlsFileName);
 
 // declare the function prototypes
 void loadLexicon();
-
 void loadUrls();
-
 vector<char> openList(string term);
-
 vector<int> VBDecodeVec(const vector<char>& encodedData);
-
 vector<int> VBDecodeFile(string filename);
+int getDocLength(const string& document);
+
+
+int getTermFreq(string term);
 
 int main() {
     cout << "The main begins!" << std::endl;
@@ -49,16 +53,45 @@ int main() {
 
     loadLexicon();
 
-//    vector<char> invList = openList("courageous");
-//    vector<int> decodedList = VBDecodeVec(invList);
-    vector<int> decodedIndexFile = VBDecodeFile(indexFileName);
-    printVec(decodedIndexFile);
+
+    // test openList() API
+    vector<char> invList = openList("seek");
+    vector<int> decodedList = VBDecodeVec(invList);
+    printVec(decodedList);
+// file decoding test
+//    vector<int> decodedIndexFile = VBDecodeFile(indexFileName);
+//    printVec(decodedIndexFile);
 
     // close the streams
     indexReader.close();
     URLsInStream.close();
 
     return 0;
+}
+
+
+// retrieves the frequency of the term in the collection
+int getTermFreq(string term) {
+    return 99;
+}
+
+int getDocLength(const string& document) {
+    return 999;
+}
+
+
+int BM25(const string& query, const string& document) {
+    stringstream lineStream(query);
+    int K = 0;
+    int result = 0;
+    string term;
+    int termFreq;
+    while (lineStream >> term) {
+        K = k1 * ((1 - b) + b * getDocLength(document) / averageDocLength);
+        termFreq = getTermFreq(term);
+        result += log((N - termFreq + 0.5) / (termFreq + 0.5)) * ((k1 + 1) * termFreq / (K + termFreq));
+    }
+    return 99;
 }
 
 
@@ -161,7 +194,7 @@ void loadUrls() {
         stringstream lineStream(line);
         lineStream >> URL;
         lineStream >> docId;
-        URLs.insert(make_pair(URL, docId));
+        URLs.insert(make_pair(docId, URL));
     }
 
 }

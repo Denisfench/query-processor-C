@@ -28,7 +28,8 @@ void printVec(T vec);
 
 void printLexicon();
 
-ifstream indexReader(indexFileName);
+// index is the binary file
+ifstream indexReader(indexFileName, ios::binary);
 ifstream URLsInStream(urlsFileName);
 
 // declare the function prototypes
@@ -53,11 +54,11 @@ int main() {
 
     loadLexicon();
 
-
     // test openList() API
-    vector<char> invList = openList("seek");
+    vector<char> invList = openList("take");
     vector<int> decodedList = VBDecodeVec(invList);
     printVec(decodedList);
+
 // file decoding test
 //    vector<int> decodedIndexFile = VBDecodeFile(indexFileName);
 //    printVec(decodedIndexFile);
@@ -138,7 +139,7 @@ vector<int> VBDecodeVec(const vector<char>& encodedData) {
     return result;
 }
 
-
+// TODO: change the line parsing logic
 void loadLexicon() {
     fstream lexiconReader(lexiconFileName, ios::in);
     if (!lexiconReader.is_open())
@@ -160,6 +161,7 @@ void loadLexicon() {
             end = line.find(tab, start);
             temp.push_back(line.substr(start, end - start));
         }
+
         // process the data
         term = temp.at(0);
         termData = temp.at(1);
@@ -206,11 +208,11 @@ vector<char> openList(string term) {
 
     // retrieve the term data from the lexicon
     tuple <int, int, int> termData = lexicon.at(term);
-    int startList = get<0>(termData);
-    int endList = get<1>(termData);
-
+    long startList = get<0>(termData);
+    long endList = get<1>(termData);
     char nextByte;
-    int numBytesToRead = endList - startList + 1;
+//    long numBytesToRead = endList - startList + 1;
+    long numBytesToRead = endList - startList;
     int count = 0;
 
     indexReader.seekg(startList, ios::beg);

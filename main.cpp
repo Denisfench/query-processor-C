@@ -14,6 +14,8 @@ const string lexiconFileName = "lexicon.txt";
 const string testIndexFileName = "test_index.bin";
 const string urlsFileName = "test_urls.txt";
 const string docPositionsFilename = "doc_locations.txt";
+const string docCollection = "testFile.trec";
+const string docCollectionDataName = "docCollectionData.txt";
 
 const char comma = ',';
 const char space = ' ';
@@ -28,7 +30,7 @@ const char DISJUNCTIVE = 'D';
 
 unordered_map <string, tuple<int, int, int>> lexicon;
 unordered_map <int, string> URLs;
-unordered_map <string, tuple<long, long>> docLocations;
+unordered_map <string, tuple<int, long, long>> docLocations;
 
 // <docId : docRank>
 priority_queue<tuple <int, int>> result;
@@ -42,6 +44,8 @@ void printLexicon();
 ifstream indexReader(indexFileName, ios::binary);
 ifstream URLsInStream(urlsFileName);
 ifstream docPositionsStream(docPositionsFilename);
+ifstream docCollectionStream(docCollection);
+ifstream docCollectionDataIn(docCollectionDataName);
 
 // declare the function prototypes
 void loadLexicon();
@@ -58,6 +62,9 @@ void rankPages(const vector<int>& docs);
 int getTermFreq(string term);
 void loadDocLocations();
 void printDocLocations();
+void getUserInput();
+void getDocByURL(string URL);
+
 
 int main() {
     cout << "The main begins!" << std::endl;
@@ -70,15 +77,39 @@ int main() {
 
     loadLexicon();
     loadUrls();
-    loadDocLocations();
-    printDocLocations();
 
-    char mode;
-    cout << "Would you like to run conjunctive or disjunctive query? [C] or [D]" << endl;
-    cin >> mode;
-    string query;
-    cout << "Please enter your query" << endl;
-    cin >> query;
+    /*
+    // load file mappings into memory
+    loadLexicon();
+    loadUrls();
+    loadDocLocations();
+
+    // printing the document by its url
+    getDocByURL("https://www.kidney.org/atoz/content/incontinence");
+
+    cout << "*********************" << endl;
+
+    tuple<vector<int>, int> docs;
+
+    docs = processDisjunctive("president");
+
+    printVec(get<0>(docs));
+
+    cout << "*********************" << endl;
+    */
+
+//    docs = processConjunctive("president");
+//
+//    printVec(get<0>(docs));
+
+    vector<char> fInvList = openList("albums");
+    vector<int> decodedFile = VBDecodeVec(fInvList);
+    printVec(decodedFile);
+
+
+//    printDocLocations();
+
+//    getUserInput();
 
 //    stringstream queryStream(query);
 //    string firstTerm;
@@ -86,13 +117,11 @@ int main() {
 //    string secTerm;
 //    queryStream >> secTerm;
 
-    tuple<vector<int>, int > result;
-
-    if (mode == CONJUNCTIVE) {
-        result = processConjunctive(query);
-    }
-    else
-        result = processDisjunctive(query);
+//    if (mode == CONJUNCTIVE) {
+//        result = processConjunctive(query);
+//    }
+//    else
+//        result = processDisjunctive(query);
 
 //    rankPages(result);
     // queue test
@@ -125,46 +154,69 @@ int main() {
 //    vector<int> decodedIndexFile = VBDecodeFile(indexFileName);
 //    printVec(decodedIndexFile);
 // ***********************************************************************
+
     // close the streams
     indexReader.close();
     URLsInStream.close();
     docPositionsStream.close();
 
+
     return 0;
 }
 
-void rankPages(const tuple<vector<int>, int> & docs) {
-    int termFreq = getTermFreq(docs);
+
+void getDocByURL(string URL) {
+    tuple<int, long, long> docLocation = docLocations[URL];
+    long docStart = get<1>(docLocation);
+    long docEnd = get<2>(docLocation);
+    long toRead = docEnd - docStart;
+    int count = 0;
+    char nextChar;
+    docCollectionStream.seekg(docStart);
+    while (count < toRead) {
+        docCollectionStream.get(nextChar);
+        cout << nextChar;
+        count++;
+    }
 }
 
 
-// retrieves the frequency of the term in the collection
-int getTermFreq(const tuple<vector<int>, int> & docs) {
-    // sum up the entries in the decoded inverted list for the term that will be loaded in memory
-    return get<1>(docs);
+void getUserInput() {
+    char mode;
+    cout << "Would you like to run conjunctive or disjunctive query? [C] or [D]" << endl;
+    cin >> mode;
+    string query;
+    cout << "Please enter your query" << endl;
+    cin >> query;
 }
+
+
+//// retrieves the frequency of the term in the collection
+//// needs a tuple from either disjunctive or conjunctive
+//// query function
+//int getTermFreq(const tuple<vector<int>, int> & docs) {
+//    return get<1>(docs);
+//}
 
 
 int getDocLength(int docID) {
     string docURL = URLs[docID];
-
-    return 999;
+    tuple <int, long, long> location = docLocations[docURL];
+    return get<1>(location) - get<0>(location);
 }
 
 
-int BM25(const string& query, int document) {
+int BM25(const string& query, int document, int termFreq) {
     stringstream lineStream(query);
     int K = 0;
     int result = 0;
     string term;
-    int termFreq;
     while (lineStream >> term) {
         K = k1 * ((1 - b) + b * getDocLength(document) / averageDocLength);
 //        termFreq = getTermFreq(term);
-        termFreq = 100;
         result += log((N - termFreq + 0.5) / (termFreq + 0.5)) * ((k1 + 1) * termFreq / (K + termFreq));
     }
-    return 99;
+    return result;
 }
 
 
@@ -199,7 +251,6 @@ vector<int> VBDecodeVec(const vector<char>& encodedData) {
         while(byte[7] == 1){
             byte.flip(7);
             num += byte.to_ulong()*pow(128, p);
-            cout << "num " << num << endl;
             p++;
             it ++;
             c = *it;
@@ -276,15 +327,17 @@ void loadUrls() {
 void loadDocLocations() {
     string line;
     string URL;
+    int docId;
     long docStart;
     long docEnd;
-    tuple <long, long> location;
+    tuple <int, long, long> location;
     while(getline(docPositionsStream, line)) {
         stringstream lineStream(line);
         lineStream >> URL;
+        lineStream >> docId;
         lineStream >> docStart;
         lineStream >> docEnd;
-        location = make_pair(docStart, docEnd);
+        location = make_tuple(docId, docStart, docEnd);
         docLocations.insert(make_pair(URL, location));
     }
 }
@@ -345,7 +398,7 @@ vector<int> loadAndPrintIndex() {
 
 template <typename T>
 void printVec(T vec) {
-    for (auto elem : vec)
+    for (auto const &elem : vec)
         cout << elem << comma << space;
 }
 

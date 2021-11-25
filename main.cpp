@@ -16,7 +16,9 @@ const string urlsFileName = "test_urls.txt";
 const string docPositionsFilename = "doc_locations.txt";
 const string docCollection = "testFile.trec";
 const string docCollectionDataName = "docCollectionData.txt";
+const int maxDocId = 3213840;
 
+const string quit = "quit";
 const char comma = ',';
 const char space = ' ';
 const char tab = '\t';
@@ -46,28 +48,31 @@ ifstream URLsInStream(urlsFileName);
 ifstream docPositionsStream(docPositionsFilename);
 ifstream docCollectionStream(docCollection);
 ifstream docCollectionDataIn(docCollectionDataName);
+ifstream lp1(indexFileName, ios::binary);
+ifstream lp2(indexFileName, ios::binary);
 
 // declare the function prototypes
 void loadLexicon();
 void loadUrls();
-vector<char> openList(string term);
+vector<char> intersectLists(string term);
 vector<int> VBDecodeVec(const vector<char>& encodedData);
 vector<int> VBDecodeFile(string filename);
 int getDocLength(int document);
 tuple<vector<int>, int > processConjunctive(const string& query);
-tuple<vector<int>, int > processDisjunctive(const string& query);
+vector<int> processDisjunctive(const string& query);
 int getTermFreq(const tuple<vector<int>, int> & docs);
+int VBDecodeByte(const char& byte);
 
 void rankPages(const vector<int>& docs);
 int getTermFreq(string term);
 void loadDocLocations();
 void printDocLocations();
-void getUserInput();
+string getUserInput();
 void getDocByURL(string URL);
 
 
 int main() {
-    cout << "The main begins!" << std::endl;
+    cout << "The main begins!" << endl;
 
     // error check the streams
     if (!indexReader.is_open()) {
@@ -75,8 +80,18 @@ int main() {
         exit(1);
     }
 
+    // load the lexicon structure into memory
+    cout << "Loading the lexicon into memory..." << endl;
     loadLexicon();
-    loadUrls();
+
+    string query = getUserInput();
+    while (query != quit) {
+        query = getUserInput();
+    }
+
+//    loadUrls();
+
+    processDisjunctive(query);
 
     /*
     // load file mappings into memory
@@ -102,9 +117,9 @@ int main() {
 //
 //    printVec(get<0>(docs));
 
-    vector<char> fInvList = openList("albums");
-    vector<int> decodedFile = VBDecodeVec(fInvList);
-    printVec(decodedFile);
+//    vector<char> fInvList = intersectLists("albums");
+//    vector<int> decodedFile = VBDecodeVec(fInvList);
+//    printVec(decodedFile);
 
 
 //    printDocLocations();
@@ -129,14 +144,14 @@ int main() {
 //    cout << "the top the queue is : " << get<0>(result.top()) << " " << get<1>(result.top()) << endl;
 
 // **************************************************************************
-    // test openList() API
-//    vector<char> fInvList = openList("take");
+    // test intersectLists() API
+//    vector<char> fInvList = intersectLists("take");
 //    vector<int> fDecodedList = VBDecodeVec(fInvList);
 //    printVec(fDecodedList);
 //
 //    cout << endl;
 //
-//    vector<char> sInvList = openList("which");
+//    vector<char> sInvList = intersectLists("which");
 //    vector<int> sDecodedList = VBDecodeVec(sInvList);
 //    printVec(sDecodedList);
 //
@@ -159,8 +174,6 @@ int main() {
     indexReader.close();
     URLsInStream.close();
     docPositionsStream.close();
-
-
     return 0;
 }
 
@@ -181,13 +194,14 @@ void getDocByURL(string URL) {
 }
 
 
-void getUserInput() {
+string getUserInput() {
     char mode;
     cout << "Would you like to run conjunctive or disjunctive query? [C] or [D]" << endl;
     cin >> mode;
     string query;
     cout << "Please enter your query" << endl;
     cin >> query;
+    return query;
 }
 
 
@@ -262,7 +276,27 @@ vector<int> VBDecodeVec(const vector<char>& encodedData) {
     return result;
 }
 
-// TODO: change the line parsing logic
+// TODO: needs to be tested
+int VBDecodeByte(const char& byteId) {
+    char c;
+    int num;
+    int p;
+    c = byteId;
+    bitset<8> byte(c);
+    num = 0;
+    p = 0;
+    while(byte[7] == 1){
+        byte.flip(7);
+        num += byte.to_ulong()*pow(128, p);
+        p++;
+        byte = bitset<8>(c);
+    }
+    num = (byte.to_ulong())*pow(128, p);
+    return num;
+}
+
+
+// TODO: parsing logic can be refactored
 void loadLexicon() {
     fstream lexiconReader(lexiconFileName, ios::in);
     if (!lexiconReader.is_open())
@@ -350,7 +384,7 @@ void printDocLocations() {
 }
 
 
-vector<char> openList(string term) {
+vector<char> intersectLists(string term) {
     vector<int> invertedList;
     vector<char> encodedInvertedList;
 
@@ -370,8 +404,61 @@ vector<char> openList(string term) {
         encodedInvertedList.push_back(nextByte);
         count++;
     }
-
     return encodedInvertedList;
+}
+
+
+vector<int> getTermDocs(string term) {
+    vector<char> encodedList;
+    vector<int> decodedList;
+    tuple<int, int, int> termData;
+    // retrieve the term data from the lexicon if it is present
+
+    if (lexicon.find(term) != lexicon.end())
+        tuple<int, int, int> termData = lexicon.at(term);
+
+    else {
+        cout << "There Aren't Any Great Matches for Your Search" << endl;
+        return decodedList;
+    }
+
+    long startList = get<0>(termData);
+    long endList = get<1>(termData);
+    char nextByte;
+//    long numBytesToRead = endList - startList + 1;
+    long numBytesToRead = endList - startList;
+    int count = 0;
+
+    indexReader.seekg(startList, ios::beg);
+
+    while (count < numBytesToRead) {
+        indexReader.get(nextByte);
+        encodedList.push_back(nextByte);
+        count++;
+    }
+    return VBDecodeVec(encodedList);
+}
+
+
+long openList(const string& term, ifstream& fileStream) {
+    // retrieve the term data from the lexicon
+    tuple <int, int, int> termData = lexicon.at(term);
+    long startList = get<0>(termData);
+    long endList = get<1>(termData);
+    fileStream.seekg(startList, ios::beg);
+    return endList;
+}
+
+
+int nextGEQ(int currDocId, ifstream& listStream, long endList) {
+    char nextByte;
+    char docId = - 1;
+    while (listStream.tellg() != endList && docId < currDocId) {
+        listStream.get(nextByte);
+        // decode the byte and retrieve the int docID
+        docId = VBDecodeByte(nextByte);
+    }
+    return docId;
 }
 
 
@@ -413,10 +500,10 @@ tuple<vector<int>, int > processConjunctive(const string& query) {
     stringstream lineStream(query);
     string term;
     lineStream >> term;
-    vector<char> firstInvList = openList(term);
+    vector<char> firstInvList = intersectLists(term);
     vector<int> firstDecodedList = VBDecodeVec(firstInvList);
     lineStream >> term;
-    vector<char> secInvList = openList(term);
+    vector<char> secInvList = intersectLists(term);
     vector<int> secDecodedList = VBDecodeVec(secInvList);
     // <docID, termFreq>
     unordered_map <int, int> firstList;
@@ -448,32 +535,48 @@ tuple<vector<int>, int > processConjunctive(const string& query) {
     return make_pair(result, termFreq);
 }
 
-
-tuple<vector<int>, int > processDisjunctive(const string& query) {
-    int termFreq = 0;
-    set<int> uniqDocs;
+// TODO: lexicon has the doc count, no need to return it from here
+vector<int> processDisjunctive(const string& query) {
     vector<int> result;
-    stringstream lineStream(query);
+    int termFreq = 0;
+    vector<string> queryTerms;
     string term;
-    lineStream >> term;
-    vector<char> firstInvList = openList(term);
-    vector<int> firstDecodedList = VBDecodeVec(firstInvList);
-    lineStream >> term;
-    vector<char> secInvList = openList(term);
-    vector<int> secDecodedList = VBDecodeVec(secInvList);
-    for (vector<char>::iterator it = firstInvList.begin(); it != firstInvList.end(); it += 2) {
-        termFreq += *(it + 1);
-        uniqDocs.insert(*it);
+    stringstream queryStream(query);
+    while (queryStream >> term)
+        queryTerms.push_back(term);
+
+    // query is empty case
+    if (queryTerms.empty())
+        return result;
+
+    // query has only 1 term
+    if (queryTerms.size() == 1) {
+        term = queryTerms.at(0);
+        // return the list of documents containing the term
+        return getTermDocs(term);
     }
 
-    for (vector<char>::iterator it = secInvList.begin(); it != secInvList.end(); it += 2) {
-        termFreq += *(it + 1);
-        uniqDocs.insert(*it);
-    }
-    for (auto itr = uniqDocs.begin(); itr != uniqDocs.end(); itr++)
-        result.push_back(*itr);
+//    set<int> uniqDocs;
+//    stringstream lineStream(query);
+//    lineStream >> term;
+//    vector<char> firstInvList = intersectLists(term);
+//    vector<int> firstDecodedList = VBDecodeVec(firstInvList);
+//    lineStream >> term;
+//    vector<char> secInvList = intersectLists(term);
+//    vector<int> secDecodedList = VBDecodeVec(secInvList);
+//    for (vector<char>::iterator it = firstInvList.begin(); it != firstInvList.end(); it += 2) {
+//        termFreq += *(it + 1);
+//        uniqDocs.insert(*it);
+//    }
+//
+//    for (vector<char>::iterator it = secInvList.begin(); it != secInvList.end(); it += 2) {
+//        termFreq += *(it + 1);
+//        uniqDocs.insert(*it);
+//    }
+//    for (auto itr = uniqDocs.begin(); itr != uniqDocs.end(); itr++)
+//        result.push_back(*itr);
 
-    return make_pair(result, termFreq);;
+    return result;
 }
 
 void printTuple(const string& term, const tuple<int, int, int>& entry) {

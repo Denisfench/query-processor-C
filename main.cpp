@@ -10,15 +10,17 @@
 using namespace std;
 
 const string indexFileName = "index.bin";
-const string lexiconFileName = "lexicon.txt";
+//const string lexiconFileName = "lexicon.txt";
+const string lexiconFileName = "test_lexicon.txt";
 const string testIndexFileName = "test_index.bin";
-const string urlsFileName = "test_urls.txt";
+//const string urlsFileName = "test_urls.txt";
+const string urlsFileName = "urls_dict.txt";
 const string docPositionsFilename = "doc_locations.txt";
 const string docCollection = "testFile.trec";
 const string docCollectionDataName = "docCollectionData.txt";
 const int maxDocId = 3213840;
 
-const string quit = "quit";
+const string quit = "Q";
 const char comma = ',';
 const char space = ' ';
 const char tab = '\t';
@@ -63,12 +65,14 @@ vector<int> processDisjunctive(const string& query);
 int getTermFreq(const tuple<vector<int>, int> & docs);
 int VBDecodeByte(const char& byte);
 
+string getURL(int docID);
 void rankPages(const vector<int>& docs);
 int getTermFreq(string term);
 void loadDocLocations();
 void printDocLocations();
 string getUserInput();
-void getDocByURL(string URL);
+void printDocByURL(string URL);
+void printUrls();
 
 
 int main() {
@@ -82,16 +86,37 @@ int main() {
 
     // load the lexicon structure into memory
     cout << "Loading the lexicon into memory..." << endl;
-    loadLexicon();
 
-    string query = getUserInput();
-    while (query != quit) {
-        query = getUserInput();
-    }
+    loadLexicon();
+    loadUrls();
+
+
+//    printLexicon();
+// TODO: the data is being repeated in urls and doc locations which is too RAM expensive
+
+    loadDocLocations();
+
+    printDocLocations();
+//    string query = getUserInput();
+//    vector<int> result = processDisjunctive(query);
+//    printVec(result);
+//    cout << "The docID is " << result.at(0) << endl;
+////    cout << getURL(result.at(0)) << endl;
+//    cout << getURL(result.at(0)) << endl;
+//    printDocByURL(getURL(result.at(0)));
+
+//    cout << "Printing the URLs table " << endl;
+//    printUrls();
+//    while (query != quit) {
+//        cout << "Loading the results for query " << query << endl;
+//        vector<int> result = processDisjunctive(query);
+//        printVec(result);
+//        cout << "Printing results..." << endl;
+//        query = getUserInput();
+//    }
 
 //    loadUrls();
 
-    processDisjunctive(query);
 
     /*
     // load file mappings into memory
@@ -178,8 +203,10 @@ int main() {
 }
 
 
-void getDocByURL(string URL) {
+void printDocByURL(string URL) {
     tuple<int, long, long> docLocation = docLocations[URL];
+    if (docLocations.empty())
+        cout << "Failed to find the corresponding document" << endl;
     long docStart = get<1>(docLocation);
     long docEnd = get<2>(docLocation);
     long toRead = docEnd - docStart;
@@ -211,6 +238,15 @@ string getUserInput() {
 //int getTermFreq(const tuple<vector<int>, int> & docs) {
 //    return get<1>(docs);
 //}
+
+// - 1 is the adjustment
+string getURL(int docID) {
+    cout << "looking for the " << docID - 1 << endl;
+    if (URLs.find(docID - 1) == URLs.end()) {
+        return "The URL not found";
+    }
+    return URLs[docID - 1];
+}
 
 
 int getDocLength(int docID) {
@@ -414,8 +450,9 @@ vector<int> getTermDocs(string term) {
     tuple<int, int, int> termData;
     // retrieve the term data from the lexicon if it is present
 
-    if (lexicon.find(term) != lexicon.end())
-        tuple<int, int, int> termData = lexicon.at(term);
+    if (lexicon.find(term) != lexicon.end()) {
+        termData = lexicon.at(term);
+    }
 
     else {
         cout << "There Aren't Any Great Matches for Your Search" << endl;
@@ -424,6 +461,9 @@ vector<int> getTermDocs(string term) {
 
     long startList = get<0>(termData);
     long endList = get<1>(termData);
+
+    cout << "startList is " << startList << endl;
+    cout << "endList is " << endList << endl;
     char nextByte;
 //    long numBytesToRead = endList - startList + 1;
     long numBytesToRead = endList - startList;
@@ -537,6 +577,7 @@ tuple<vector<int>, int > processConjunctive(const string& query) {
 
 // TODO: lexicon has the doc count, no need to return it from here
 vector<int> processDisjunctive(const string& query) {
+    cout << "The query is " << query << endl;
     vector<int> result;
     int termFreq = 0;
     vector<string> queryTerms;
@@ -552,6 +593,7 @@ vector<int> processDisjunctive(const string& query) {
     // query has only 1 term
     if (queryTerms.size() == 1) {
         term = queryTerms.at(0);
+        cout << "The term is " << term << endl;
         // return the list of documents containing the term
         return getTermDocs(term);
     }
@@ -588,6 +630,12 @@ void printLexicon() {
     for (auto const& entry: lexicon) {
         printTuple(entry.first, entry.second);
     }
+}
+
+
+void printUrls() {
+    for (auto const& url: URLs)
+        cout << "docID " << url.first << " " << "URL " << url.second << endl;
 }
 
 

@@ -671,7 +671,6 @@ vector<int> processDisjunctive(const string& query) {
     termListMap.pop();
 
     // * intersect the first 2 lists
-    cout << "\n\n INTERSECTING LISTS \n\n" << endl;
     long startList1 = get<0>(lexicon[term1]);
     long endList1 = get<1>(lexicon[term1]);
 
@@ -704,6 +703,7 @@ vector<int> processDisjunctive(const string& query) {
     // * list 1 is smaller than list 2 (min heap condition)
     // * need both conditions in the while loops because of the forward skips
     // * to find the next greatest element
+    // TODO: we don't need to check the second condition in the while loop
     while (numBytesReadList1 < numBytesToReadList1 &&
            numBytesReadList2 < numBytesToReadList2) {
 
@@ -746,6 +746,58 @@ vector<int> processDisjunctive(const string& query) {
             lp2.get(nextByteList2);
             numBytesReadList2 += 2;
             decodedByteList2 += VBDecodeByte(nextByteList2);
+        }
+      }
+      // * keep intersecting list until we've done it for all query terms
+      while (!termListMap.empty()) {
+        string nextTerm = get<0>(termListMap.top());
+        termListMap.pop();
+        prevIntersected = currIntersected;
+        long startNextList = get<0>(lexicon[term1]);
+        long endNextList = get<1>(lexicon[term1]);
+
+        char nextListByte;
+        int nextListDecodedByte = 0;
+        long nextListBytesToRead = endNextList - startNextList;
+        int nextListBytesRead = 0;
+
+        // * reusing lp1 pointer
+        lp1.seekg(startNextList, ios::beg);
+
+        // * grab the initial values for the next list
+        lp1.get(nextListByte);
+
+        // * decode the value
+        nextListDecodedByte += VBDecodeByte(nextListByte);
+        int prevListIdx = 0;
+
+        while (prevListIdx < prevIntersected.size() &&
+               nextListBytesRead < nextListBytesToRead) {
+
+          // * if we've found a common document, store the result and advance
+          // * both pointers
+          if (prevIntersected.at(prevListIdx) == nextListDecodedByte) {
+            currIntersected.push_back(nextListDecodedByte);
+            // * shift the next list pointer from frequency on the docID
+            lp1.get();
+            // * grab the next docID in the next list
+            lp1.get(nextListByte);
+            nextListDecodedByte += VBDecodeByte(nextListByte);
+            prevListIdx++;
+          }
+
+          // * advance the previous list pointer
+          else if (prevIntersected.at(prevListIdx) < nextListDecodedByte)
+            prevListIdx++;
+
+          // * advance the next list pointer
+          else {
+            // * shift the next list pointer from frequency on the docID
+            lp1.get();
+            // * grab the next docID in the next list
+            lp1.get(nextListByte);
+            nextListDecodedByte += VBDecodeByte(nextListByte);
+          }
         }
       }
     // * close list streams

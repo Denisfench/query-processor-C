@@ -29,19 +29,30 @@ const char comma = ',';
 const char space = ' ';
 const char tab = '\t';
 const char newline = '\n';
-const int N = 3213835;
-const int averageDocLength = 200;
+// * N and dAvg below are being retrieved from the docMetadataFile
+// * N is the number of documents in the collection
+// * dAvg is the average length of the document
+const int N = 3213834;
+const int dAvg = 302;
 const float k1 = 2;
 const float b = 0.75;
 const char CONJUNCTIVE = 'C';
 const char DISJUNCTIVE = 'D';
 
+// * <term : <indexStartOffset, indexEndOffset, collectionFreqCount> >
 unordered_map <string, tuple<int, int, int>> lexicon;
+
+// TODO: deprecated, use docMap instead
 unordered_map <int, string> URLs;
+
+// TODO: deprecated, use docMap instead
 unordered_map <string, tuple<int, long, long>> docLocations;
 
-// <docId : docRank>
-priority_queue<tuple <int, int>> result;
+// * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
+unordered_map <int, tuple<string, int, long, long>> docMap;
+
+// * <docRank : docId>
+priority_queue<pair <int, int>> top10Results;
 
 template <typename T>
 void printVec(T vec);
@@ -63,7 +74,7 @@ void loadUrls();
 vector<char> intersectLists(string term);
 vector<int> VBDecodeVec(const vector<char>& encodedData);
 vector<int> VBDecodeFile(string filename);
-int getDocLength(int document);
+int getDocLength(int docID);
 tuple<vector<int>, int > processConjunctive(const string& query);
 vector<int> processDisjunctive(const string& query);
 int getTermFreq(const tuple<vector<int>, int> & docs);
@@ -77,7 +88,9 @@ void printDocLocations();
 string getUserInput();
 void printDocByURL(string URL);
 void printUrls();
-
+int getTermDocFreq(const string& term, int docID);
+int getTermColFreq(const string& term);
+int rankDoc(const string& term, int docID);
 
 int main() {
     cout << "The main begins!" << endl;
@@ -103,9 +116,33 @@ int main() {
 
     vector<int> result_1 = processDisjunctive("well");
     printVec(result_1);
-    cout << "///////////////////" << endl;
-    vector<int> result_2 = processDisjunctive("wellness");
-    printVec(result_2);
+    cout << "********************************" << endl;
+    int termFreq = getTermDocFreq("well", 16);
+    cout << "termFreq " <<  termFreq << endl;
+    cout << "********************************" << endl;
+    int docRank = rankDoc("well", 1);
+    cout << "The rank of the document is " << docRank << endl;
+    // BEGIN PLAYGROUND TEST
+//    tuple<string, int, long, long> termData = make_tuple("http/cats.com", 10, 299, 399);
+//    docMap.insert(make_pair(99, termData));
+//
+//    int termFreq = getTermDocFreq("term", 99);
+//
+//    cout << "The termFreq is " << termFreq << endl;
+    // END PLAYGROUND TEST
+
+    /*
+    int main () {
+        // <docRank docID>
+        tuple<int, int> doc = make_pair(10, 9);
+        tuple<int, int> doc1 = make_pair(10, 300);
+        tuple<int, int> doc2 = make_pair(10, 300);
+        result.push(doc);
+        result.push(doc1);
+        result.push(doc2);
+        pair<int, int> top = result.top();
+        cout << top.first << " " << top.second;
+    */
 
 //    cout << "The docID is " << result.at(0) << endl;
 //    printDocByURL(getURL(result.at(0)));
@@ -118,7 +155,7 @@ int main() {
     return 0;
 }
 
-
+// TODO: docLocations interface has changed
 void printDocByURL(string URL) {
     tuple<int, long, long> docLocation = docLocations[URL];
     if (docLocations.empty())
@@ -158,24 +195,100 @@ string getURL(int docID) {
 }
 
 
+// * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
 int getDocLength(int docID) {
-    string docURL = URLs[docID];
-    tuple <int, long, long> location = docLocations[docURL];
-    return get<1>(location) - get<0>(location);
+  if (docMap.find(docID) == docMap.end()) {
+    cout << "docID wasn't found in the document map" << endl;
+    return -1;
+  }
+  return get<1>(docMap[docID]);
 }
 
 
-int BM25(const string& query, int document, int termFreq) {
-    stringstream lineStream(query);
+// rankDoc() takes a term and a docID of the documents containing the term as parameters
+// and returns an integer ranking of that document with respect to the term
+// * fDt is the frequency of the given term in the document with a given docID
+// * fT is the frequency of the given term in the collection of documents
+// * dAvg is the average length of a document in our collection
+// * k is the constant set to 2
+// * b is the constant set to 0.75
+// * d is the document length
+int rankDoc(const string& term, int docID) {
     int K = 0;
-    int result = 0;
-    string term;
-    while (lineStream >> term) {
-        K = k1 * ((1 - b) + b * getDocLength(document) / averageDocLength);
-//        termFreq = getTermFreq(term);
-        result += log((N - termFreq + 0.5) / (termFreq + 0.5)) * ((k1 + 1) * termFreq / (K + termFreq));
+    int docRank = 0;
+    int fDt = getTermDocFreq(term, docID);
+    int fT = getTermColFreq(term);
+    int d = getDocLength(docID);
+    K = k1 * ((1 - b) + b * d / dAvg);
+    fDt = log((N - fDt + 0.5) / (fDt + 0.5)) * ((k1 + 1) * fDt / (K + fDt));
+    return abs(fDt);
+}
+
+// * docMap description
+// * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
+//int getTermDocFreq(const string& term, int docID) {
+////    m.find(key) == m.end()
+//    if (docMap.find(docID) == docMap.end())
+//        cout << "Failed to find the corresponding document" << endl;
+//    long docStart = get<2>(docMap[docID]);
+//    long docEnd = get<3>(docMap[docID]);
+//    char nextByte;
+//    long numBytesToRead = endList - startList;
+//    int count = 0;
+//
+//    indexReader.seekg(startList, ios::beg);
+//
+//    while (count < numBytesToRead) {
+//        indexReader.get(nextByte);
+//        encodedList.push_back(nextByte);
+//        count += 2;
+//        indexReader.get(nextByte);
+//    }
+//
+//    return VBDecodeVec(encodedList);
+//}
+
+int getTermDocFreq(const string& term, int docID) {
+    if (lexicon.find(term) == lexicon.end()) {
+        cout << "There Aren't Any Great Matches for Your Search" << endl;
+        return - 1;
     }
-    return result;
+
+    long startList = get<0>(lexicon.at(term));
+    long endList = get<1>(lexicon.at(term));
+
+    cout << "start list " << startList << endl;
+    cout << "end list " << endList << endl;
+
+    char nextByte;
+    long numBytesToRead = endList - startList;
+    int count = 0;
+    int currDocId = 0;
+    indexReader.seekg(startList, ios::beg);
+
+    while (count < numBytesToRead) {
+        indexReader.get(nextByte);
+        currDocId += VBDecodeByte(nextByte);
+        cout << "currDocId " << currDocId << endl;
+        if (currDocId == docID) {
+            indexReader.get(nextByte);
+            return VBDecodeByte(nextByte);
+        }
+        count += 2;
+        indexReader.get(nextByte);
+    }
+    return - 1;
+}
+
+// * lexicon definition
+// * <term : <indexStartOffset, indexEndOffset, collectionFreqCount> >
+int getTermColFreq(const string& term) {
+    if (lexicon.find(term) == lexicon.end()) {
+      cout << "We couldn't find the query term " << term << " in our lexicon"
+           << endl;
+      return - 1;
+    }
+  return get<2>(lexicon[term]);
 }
 
 
@@ -224,6 +337,7 @@ vector<int> VBDecodeVec(const vector<char>& encodedData) {
 
 // TODO: needs to be tested
 int VBDecodeByte(const char& byteId) {
+    cout << "encoding byte is " << byteId << endl;
     char c;
     int num;
     int p;
@@ -238,6 +352,7 @@ int VBDecodeByte(const char& byteId) {
         byte = bitset<8>(c);
     }
     num = (byte.to_ulong())*pow(128, p);
+    cout << "decopded value is " << num << endl;
     return num;
 }
 

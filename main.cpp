@@ -39,6 +39,14 @@ const float b = 0.75;
 const char CONJUNCTIVE = 'C';
 const char DISJUNCTIVE = 'D';
 
+// * customer comparator that allows us to order tuples by the second column
+// * in a priority queue
+struct termLengthComparator {
+  bool operator()(tuple<string, int>& t1, tuple<string, int>& t2) {
+    return get<1>(t1) > get<1>(t2);
+  }
+};
+
 // * <term : <indexStartOffset, indexEndOffset, collectionFreqCount> >
 unordered_map <string, tuple<int, int, int>> lexicon;
 
@@ -51,6 +59,7 @@ unordered_map <string, tuple<int, long, long>> docLocations;
 // * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
 unordered_map <int, tuple<string, int, long, long>> docMap;
 
+// TODO: implement a custom comparator to change the order to <docID : docRank>
 // * <docRank : docId>
 priority_queue<pair <int, int>> top10Results;
 
@@ -65,8 +74,6 @@ ifstream URLsInStream(urlsFileName);
 ifstream docPositionsStream(urlsFileName);
 ifstream docCollectionStream(docCollectionFileName);
 ifstream docCollectionDataIn(docCollectionDataName);
-ifstream lp1(indexFileName, ios::binary);
-ifstream lp2(indexFileName, ios::binary);
 
 // declare the function prototypes
 void loadLexicon();
@@ -92,10 +99,12 @@ int getTermDocFreq(const string& term, int docID);
 int getTermColFreq(const string& term);
 int rankDoc(const string& term, int docID);
 
+
 int main() {
     cout << "The main begins!" << endl;
 
     // error check the streams
+    // TODO: check other streams
     if (!indexReader.is_open()) {
         cerr << "Error opening the index file " << endl;
         exit(1);
@@ -113,15 +122,17 @@ int main() {
 ////
 //    printDocLocations();
 //    string query = getUserInput();
-
-    vector<int> result_1 = processDisjunctive("well");
+    cout << "testing the implementation of disjunctive query" << endl;
+    vector<int> result_1 = processDisjunctive("well wellness");
     printVec(result_1);
-    cout << "********************************" << endl;
-    int termFreq = getTermDocFreq("well", 16);
-    cout << "termFreq " <<  termFreq << endl;
-    cout << "********************************" << endl;
-    int docRank = rankDoc("well", 1);
-    cout << "The rank of the document is " << docRank << endl;
+
+//    cout << "********************************" << endl;
+//    int termFreq = getTermDocFreq("well", 16);
+//    cout << "termFreq " <<  termFreq << endl;
+//    cout << "********************************" << endl;
+//    int docRank = rankDoc("well", 1);
+//    cout << "The rank of the document is " << docRank << endl;
+
     // BEGIN PLAYGROUND TEST
 //    tuple<string, int, long, long> termData = make_tuple("http/cats.com", 10, 299, 399);
 //    docMap.insert(make_pair(99, termData));
@@ -337,7 +348,6 @@ vector<int> VBDecodeVec(const vector<char>& encodedData) {
 
 // TODO: needs to be tested
 int VBDecodeByte(const char& byteId) {
-    cout << "encoding byte is " << byteId << endl;
     char c;
     int num;
     int p;
@@ -352,7 +362,6 @@ int VBDecodeByte(const char& byteId) {
         byte = bitset<8>(c);
     }
     num = (byte.to_ulong())*pow(128, p);
-    cout << "decopded value is " << num << endl;
     return num;
 }
 
@@ -605,29 +614,200 @@ tuple<vector<int>, int > processConjunctive(const string& query) {
 }
 
 // TODO: lexicon has the doc count, no need to return it from here
+// TODO: the query should be parsed in user input function
 vector<int> processDisjunctive(const string& query) {
-    cout << "The query is " << query << endl;
-    vector<int> result;
-    int termFreq = 0;
+
+    // * termLists is a min heap mapping terms to their inverted list lengths
+    // * <term : invertedListLength>
+    priority_queue<tuple<string, int>, vector<tuple<string, int>>,
+                   termLengthComparator>
+        termListMap;
+
+    vector<int> prevIntersected;
+    vector<int> currIntersected;
+
+    // TODO: we don't need a separate vector for query terms, just use the
+    //  termLengthComparator queue
+    // * parse the user query
     vector<string> queryTerms;
     string term;
     stringstream queryStream(query);
     while (queryStream >> term)
         queryTerms.push_back(term);
 
-    // query is empty case
+    // * the query is empty
     if (queryTerms.empty())
-        return result;
+        return currIntersected;
 
-    // query has only 1 term
+    // * query has only 1 term
     if (queryTerms.size() == 1) {
         term = queryTerms.at(0);
-        cout << "The term is " << term << endl;
-        // return the list of documents containing the term
+        // * return the list of documents containing the term
         return getTermDocs(term);
     }
 
-    return result;
+    // TODO: BELOW WORKS ONLY FOR 2 LISTS, CURRENTLY TESTING THE
+    //  IMPLEMENTATION BEFORE PROCEEDING TO > 2 LISTS
+    // * if the query has 2 or more terms, then
+    // * all the docs containing the terms must be intersected
+
+    // * put all the terms in the termListMap min heap
+    // * and ensure that we have terms in the lexicon
+    for (const string& queryTerm : queryTerms) {
+      if (lexicon.find(queryTerm) == lexicon.end()) {
+      cout << "There Aren't Any Great Matches for Your Search" << endl;
+      return currIntersected;
+      }
+      termListMap.push(make_pair(queryTerm, get<2>(lexicon[queryTerm])));
+    }
+
+    // * initialize list streams
+    ifstream lp1(indexFileName, ios::binary);
+    ifstream lp2(indexFileName, ios::binary);
+
+    string term1 = get<0>(termListMap.top());
+    termListMap.pop();
+    string term2 = get<0>(termListMap.top());
+    termListMap.pop();
+
+    // * intersect the first 2 lists
+    cout << "\n\n INTERSECTING LISTS \n\n" << endl;
+    long startList1 = get<0>(lexicon[term1]);
+    long endList1 = get<1>(lexicon[term1]);
+
+    long startList2 = get<0>(lexicon[term2]);
+    long endList2 = get<1>(lexicon[term2]);
+
+    char nextByteList1;
+    int decodedByteList1 = 0;
+    long numBytesToReadList1 = endList1 - startList1;
+    int numBytesReadList1 = 0;
+
+    char nextByteList2;
+    int decodedByteList2 = 0;
+    long numBytesToReadList2 = endList2 - startList2;
+    int numBytesReadList2 = 0;
+
+    // * set both streams to point to their
+    // * corresponding lists in the index
+    lp1.seekg(startList1, ios::beg);
+    lp2.seekg(startList2, ios::beg);
+
+    // * get initial values for both lists
+//    lp1.get(nextByteList1);
+//    lp2.get(nextByteList2);
+//    decodedByteList1 += VBDecodeByte(nextByteList1);
+//    decodedByteList2 += VBDecodeByte(nextByteList2);
+//    if (decodedByteList1 == decodedByteList2)
+//      currIntersected.push_back(decodedByteList1);
+
+
+    // * lp1 < lp2
+    // * need both conditions in the while loops because of the forward skips
+    // * to find the next greatest element
+    while (numBytesReadList1 < numBytesToReadList1 &&
+           numBytesReadList2 < numBytesToReadList2) {
+      // * read and decode the first document from each list
+      decodedByteList1 += VBDecodeByte(nextByteList1);
+      decodedByteList2 += VBDecodeByte(nextByteList2);
+
+      // * move both lp1 and lp2 forward
+      // * now both of them are pointing to their respective term frequencies
+//      lp1.get(nextByteList1);
+//      lp2.get(nextByteList2);
+//      lp1.get(nextByteList1);
+//      lp2.get(nextByteList2);
+      // * += is to account for us storing the differences
+      // * between docIDs rather than docIDs themselves
+//      decodedByteList1 += VBDecodeByte(nextByteList1);
+//      decodedByteList2 += VBDecodeByte(nextByteList2);
+      // TODO: "well" and "wellness" correct : docIDs : 1 and 2
+//      cout << "decodedByteList1 " << decodedByteList1 << " decodedByteList2 "
+//           << decodedByteList2 << endl;
+      // * move both list pointers forward
+      if (decodedByteList1 == decodedByteList2) {
+        // * move both lp1 and lp2 forward twice
+        // * now both of them are pointing to their respective docIDs
+        lp1.get(nextByteList1);
+        lp1.get(nextByteList1);
+        lp2.get(nextByteList2);
+        lp2.get(nextByteList2);
+        // * increment the counters
+        numBytesReadList1 += 2;
+        numBytesReadList2 += 2;
+//        decodedByteList1 += VBDecodeByte(nextByteList1);
+//        decodedByteList2 += VBDecodeByte(nextByteList2);
+//        cout << "decodedByteList1" << decodedByteList1 <<
+//            "decodedByteList1 == decodedByteList2" << endl;
+        cout << "decodedByteList1   714 " << decodedByteList1 << endl;
+        // * add the common docID to our result collection
+        currIntersected.push_back(decodedByteList1);
+//        lp1.get(nextByteList1);
+//        lp2.get(nextByteList2);
+      }
+
+      // * move the first list pointer forward
+      else if (decodedByteList1 < decodedByteList2) {
+        while (numBytesReadList1 < numBytesToReadList1 &&
+               decodedByteList1 < decodedByteList2) {
+          lp1.get(nextByteList1);
+          decodedByteList1 += VBDecodeByte(nextByteList1);
+          numBytesReadList1 += 2;
+          // * performing another read to skip the term frequency in the index
+          lp1.get(nextByteList1);
+        }
+        // * check the while loop break conditions
+        // * if we've reached the end of the first list
+        if (numBytesReadList1 > numBytesToReadList1) {
+          cout << "numBytesReadList1 >= numBytesToReadList1" << endl;
+          return currIntersected;
+        }
+
+        if (decodedByteList1 == decodedByteList2) {
+//          cout << "decodedByteList1 " << decodedByteList1 <<
+//              " decodedByteList1 == decodedByteList2" << endl;
+          cout << "decodedByteList1   744 " << decodedByteList1 << endl;
+          currIntersected.push_back(decodedByteList1);
+        }
+      }
+
+      // * decodedByteList1 > decodedByteList2
+      // * move the second list pointer forward
+      else {
+        while (numBytesReadList2 < numBytesToReadList2 &&
+               decodedByteList2 < decodedByteList1) {
+          cout << "decodedByteList1 " << decodedByteList1 << " decodedByteList2 "
+               << decodedByteList2 << endl;
+          lp2.get(nextByteList1);
+          decodedByteList2 += VBDecodeByte(nextByteList2);
+          numBytesReadList2 += 2;
+          // * performing another read to skip the term frequency in the index
+          lp2.get(nextByteList1);
+        }
+        // * check the while loop break conditions
+        // * if we've reached the end of the second list
+        if (numBytesReadList2 > numBytesToReadList2) {
+          cout << "numBytesReadList2 >= numBytesToReadList2" << endl;
+          return currIntersected;
+        }
+
+        if (decodedByteList2 == decodedByteList1) {
+          cout << "decodedByteList1    770 " << decodedByteList1 << endl;
+          currIntersected.push_back(decodedByteList2);
+//          cout << "while 2" << " decodedByteList1 " << decodedByteList1 <<
+//              "decodedByteList1 == decodedByteList2" << endl;
+        }
+      }
+      // advance
+      numBytesReadList1 += 2;
+      numBytesReadList2 += 2;
+      lp1.get(nextByteList1);
+      lp2.get(nextByteList2);
+    }
+    // * close list streams
+    lp1.close();
+    lp2.close();
+    return currIntersected;
 }
 
 void printTuple(const string& term, const tuple<int, int, int>& entry) {
@@ -677,4 +857,5 @@ vector<int> VBDecodeFile(string filename) {
     }
     return result;
 }
+
 

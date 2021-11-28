@@ -692,12 +692,14 @@ vector<int> processDisjunctive(const string& query) {
     // * corresponding lists in the index
     lp1.seekg(startList1, ios::beg);
     lp2.seekg(startList2, ios::beg);
-
+    cout << "lp1 before get byte " << lp1.tellg() << endl;
     // * get initial values for both lists
-//    lp1.get(nextByteList1);
-//    lp2.get(nextByteList2);
-//    decodedByteList1 += VBDecodeByte(nextByteList1);
-//    decodedByteList2 += VBDecodeByte(nextByteList2);
+    lp1.get(nextByteList1);
+    lp2.get(nextByteList2);
+//    lp1.seekg(startList1, ios::beg);
+//    lp2.seekg(startList2, ios::beg);
+    decodedByteList1 += VBDecodeByte(nextByteList1);
+    decodedByteList2 += VBDecodeByte(nextByteList2);
 //    if (decodedByteList1 == decodedByteList2)
 //      currIntersected.push_back(decodedByteList1);
 
@@ -708,9 +710,12 @@ vector<int> processDisjunctive(const string& query) {
     while (numBytesReadList1 < numBytesToReadList1 &&
            numBytesReadList2 < numBytesToReadList2) {
       // * read and decode the first document from each list
-      decodedByteList1 += VBDecodeByte(nextByteList1);
-      decodedByteList2 += VBDecodeByte(nextByteList2);
-
+      // will keep increment the value even if the list pointers haven't
+      // changed
+//      decodedByteList1 += VBDecodeByte(nextByteList1);
+//      decodedByteList2 += VBDecodeByte(nextByteList2);
+      cout << "decodedByteList1   " << decodedByteList1 << endl;
+      cout << "decodedByteList2   " << decodedByteList2 << endl;
       // * move both lp1 and lp2 forward
       // * now both of them are pointing to their respective term frequencies
 //      lp1.get(nextByteList1);
@@ -726,84 +731,90 @@ vector<int> processDisjunctive(const string& query) {
 //           << decodedByteList2 << endl;
       // * move both list pointers forward
       if (decodedByteList1 == decodedByteList2) {
-        // * move both lp1 and lp2 forward twice
-        // * now both of them are pointing to their respective docIDs
+        lp1.get();
         lp1.get(nextByteList1);
-        lp1.get(nextByteList1);
-        lp2.get(nextByteList2);
+        lp2.get();
         lp2.get(nextByteList2);
         // * increment the counters
         numBytesReadList1 += 2;
         numBytesReadList2 += 2;
-//        decodedByteList1 += VBDecodeByte(nextByteList1);
-//        decodedByteList2 += VBDecodeByte(nextByteList2);
+        // * move both lp1 and lp2 forward twice
+        // * now both of them are pointing to their respective docIDs
+//        lp1.get(nextByteList1);
+//        lp1.get(nextByteList1);
+//        lp2.get(nextByteList2);
+//        lp2.get(nextByteList2);
+//        // * increment the counters
+//        numBytesReadList1 += 2;
+//        numBytesReadList2 += 2;
 //        cout << "decodedByteList1" << decodedByteList1 <<
 //            "decodedByteList1 == decodedByteList2" << endl;
         cout << "decodedByteList1   714 " << decodedByteList1 << endl;
         // * add the common docID to our result collection
         currIntersected.push_back(decodedByteList1);
+        decodedByteList1 += VBDecodeByte(nextByteList1);
+        decodedByteList2 += VBDecodeByte(nextByteList2);
 //        lp1.get(nextByteList1);
 //        lp2.get(nextByteList2);
       }
 
       // * move the first list pointer forward
       else if (decodedByteList1 < decodedByteList2) {
-        while (numBytesReadList1 < numBytesToReadList1 &&
-               decodedByteList1 < decodedByteList2) {
+          cout << "decodedByteList1 < decodedByteList2" << endl;
+//          decodedByteList1 += VBDecodeByte(nextByteList1);
+          // * advancing the first pointer twice
+          // * now it points to the lp1s next docID
+          lp1.get();
           lp1.get(nextByteList1);
-          decodedByteList1 += VBDecodeByte(nextByteList1);
           numBytesReadList1 += 2;
+          decodedByteList1 += VBDecodeByte(nextByteList1);
           // * performing another read to skip the term frequency in the index
-          lp1.get(nextByteList1);
-        }
         // * check the while loop break conditions
         // * if we've reached the end of the first list
-        if (numBytesReadList1 > numBytesToReadList1) {
-          cout << "numBytesReadList1 >= numBytesToReadList1" << endl;
-          return currIntersected;
-        }
+//        if (numBytesReadList1 > numBytesToReadList1) {
+//          cout << "numBytesReadList1 >= numBytesToReadList1" << endl;
+//          return currIntersected;
+//        }
 
-        if (decodedByteList1 == decodedByteList2) {
-//          cout << "decodedByteList1 " << decodedByteList1 <<
-//              " decodedByteList1 == decodedByteList2" << endl;
-          cout << "decodedByteList1   744 " << decodedByteList1 << endl;
-          currIntersected.push_back(decodedByteList1);
-        }
+//        if (decodedByteList1 == decodedByteList2) {
+////          cout << "decodedByteList1 " << decodedByteList1 <<
+////              " decodedByteList1 == decodedByteList2" << endl;
+//          cout << "decodedByteList1   744 " << decodedByteList1 << endl;
+//          currIntersected.push_back(decodedByteList1);
+//        }
       }
 
       // * decodedByteList1 > decodedByteList2
       // * move the second list pointer forward
       else {
-        while (numBytesReadList2 < numBytesToReadList2 &&
-               decodedByteList2 < decodedByteList1) {
-          cout << "decodedByteList1 " << decodedByteList1 << " decodedByteList2 "
-               << decodedByteList2 << endl;
-          lp2.get(nextByteList1);
-          decodedByteList2 += VBDecodeByte(nextByteList2);
-          numBytesReadList2 += 2;
-          // * performing another read to skip the term frequency in the index
-          lp2.get(nextByteList1);
+//        while (numBytesReadList2 < numBytesToReadList2 &&
+//               decodedByteList2 < decodedByteList1) {
+//          cout << "decodedByteList1 " << decodedByteList1 << " decodedByteList2 "
+//               << decodedByteList2 << endl;
+            lp2.get();
+            lp2.get(nextByteList2);
+            numBytesReadList2 += 2;
+            decodedByteList2 += VBDecodeByte(nextByteList2);
         }
         // * check the while loop break conditions
         // * if we've reached the end of the second list
-        if (numBytesReadList2 > numBytesToReadList2) {
-          cout << "numBytesReadList2 >= numBytesToReadList2" << endl;
-          return currIntersected;
-        }
-
-        if (decodedByteList2 == decodedByteList1) {
-          cout << "decodedByteList1    770 " << decodedByteList1 << endl;
-          currIntersected.push_back(decodedByteList2);
-//          cout << "while 2" << " decodedByteList1 " << decodedByteList1 <<
-//              "decodedByteList1 == decodedByteList2" << endl;
-        }
+//        if (numBytesReadList2 > numBytesToReadList2) {
+//          cout << "numBytesReadList2 >= numBytesToReadList2" << endl;
+//          return currIntersected;
+//        }
+//
+//        if (decodedByteList2 == decodedByteList1) {
+//          cout << "decodedByteList1    770 " << decodedByteList1 << endl;
+//          currIntersected.push_back(decodedByteList2);
+////          cout << "while 2" << " decodedByteList1 " << decodedByteList1 <<
+////              "decodedByteList1 == decodedByteList2" << endl;
+//        }
       }
-      // advance
-      numBytesReadList1 += 2;
-      numBytesReadList2 += 2;
-      lp1.get(nextByteList1);
-      lp2.get(nextByteList2);
-    }
+//      // advance
+//      numBytesReadList1 += 2;
+//      numBytesReadList2 += 2;
+//      lp1.get(nextByteList1);
+//      lp2.get(nextByteList2);
     // * close list streams
     lp1.close();
     lp2.close();

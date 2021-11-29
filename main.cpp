@@ -123,7 +123,7 @@ int main() {
 //    printDocLocations();
 //    string query = getUserInput();
     cout << "testing the implementation of disjunctive query" << endl;
-    vector<int> result_1 = processDisjunctive("well wellness");
+    vector<int> result_1 = processDisjunctive("well wellness welcomes");
     printVec(result_1);
 
 //    cout << "********************************" << endl;
@@ -670,6 +670,9 @@ vector<int> processDisjunctive(const string& query) {
     string term2 = get<0>(termListMap.top());
     termListMap.pop();
 
+    cout << "term1 " << term1 << endl;
+    cout << "term2 " << term2 << endl;
+
     // * intersect the first 2 lists
     long startList1 = get<0>(lexicon[term1]);
     long endList1 = get<1>(lexicon[term1]);
@@ -700,13 +703,15 @@ vector<int> processDisjunctive(const string& query) {
     decodedByteList1 += VBDecodeByte(nextByteList1);
     decodedByteList2 += VBDecodeByte(nextByteList2);
 
+    cout << "decodedByteList1 " << decodedByteList1 << endl;
+    cout << "decodedByteList2 " << decodedByteList2 << endl;
+
     // * list 1 is smaller than list 2 (min heap condition)
     // * need both conditions in the while loops because of the forward skips
     // * to find the next greatest element
-    // TODO: we don't need to check the second condition in the while loop
     while (numBytesReadList1 < numBytesToReadList1 &&
            numBytesReadList2 < numBytesToReadList2) {
-
+    cout << "executed" << endl;
       // * move both list pointers forward
       if (decodedByteList1 == decodedByteList2) {
         // * shift the list1 pointer from frequency on the docID
@@ -748,11 +753,15 @@ vector<int> processDisjunctive(const string& query) {
             decodedByteList2 += VBDecodeByte(nextByteList2);
         }
       }
+      cout << "currIntersected after intersecting 2 lists is " << endl;
+      printVec(currIntersected);
+      // TODO: needs to be tested
       // * keep intersecting list until we've done it for all query terms
       while (!termListMap.empty()) {
         string nextTerm = get<0>(termListMap.top());
         termListMap.pop();
         prevIntersected = currIntersected;
+        currIntersected.clear();
         long startNextList = get<0>(lexicon[term1]);
         long endNextList = get<1>(lexicon[term1]);
 
@@ -803,6 +812,9 @@ vector<int> processDisjunctive(const string& query) {
     // * close list streams
     lp1.close();
     lp2.close();
+    cout << " \n\n ************** \n\n" << endl;
+    printVec(currIntersected);
+    cout << " \n \n ************** \n\n" << endl;
     return currIntersected;
 }
 

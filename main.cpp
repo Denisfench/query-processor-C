@@ -53,7 +53,7 @@ struct termLengthComparator {
 
 
 struct snippetScoreComparator {
-  bool operator()(tuple<string, int>& t1, tuple<string, int>& t2) {
+  bool operator()(pair<string, int>& t1, pair<string, int>& t2) {
     return get<1>(t1) <= get<1>(t2);
   }
 };
@@ -114,6 +114,7 @@ vector<string> generateSnippet(int docID, const vector<string>& query);
 void loadDocMap();
 vector<char> getDocText(int docID);
 vector<string> breakDocIntoSentences(int docID);
+int rankSnippet(const string& sentence, const vector<string>& query);
 
 // TODO: conjunctive AND ; disjunctive OR -> you've the function names
 //  backwards
@@ -134,11 +135,27 @@ int main() {
 //    printVec(decodedList);
 
     loadDocMap();
-    cout << "getting the doc sentences" << endl;
-    vector<string> docSentences = breakDocIntoSentences(3213832);
-    cout << "printing the doc sentences..." << endl;
-    for (const string& sentence : docSentences)
-        cout << sentence << endl;
+//    cout << "getting the doc sentences" << endl;
+//    vector<string> docSentences = breakDocIntoSentences(3213832);
+//    cout << "printing the doc sentences..." << endl;
+//    for (const string& sentence : docSentences)
+//        cout << sentence << endl;
+
+    cout << "\n\n\n**********************************\n\n\n" << endl;
+
+    vector<string> query;
+    query.emplace_back("Trenton");
+    query.emplace_back("and");
+    query.emplace_back("Princeton");
+    int sRank = rankSnippet("Regardless, by 1777 the British occupied "
+                            "Philadelphia, the seat of the Continental "
+                            "Congress, and sent that body into hiding.", query);
+    cout << "the snippet rank is " << sRank << endl;
+//    cout << "generating a snippet..." << endl;
+//    vector<string> snippet = generateSnippet(3213832, query);
+//    cout << "printing snippet..." << endl;
+//    for (const string& subsnippet : snippet)
+//      cout << subsnippet << "... ";
 //    loadLexicon();
 //    loadUrls();
 //    loadDocLocations();
@@ -974,26 +991,30 @@ int rankSnippet(const string& sentence, const vector<string>& query) {
   int c = 0;
   int k = 0;
   uint d;
-
+  int startSearchIdx = 0;
   for (const string& term : query) {
+    cout << "Term " << term << endl;
     queryStr += term + space;
-    while (sentence.find(term, 0) != string::npos) {
-      c++;
+    startSearchIdx = sentence.find(term, 0);
+    while (startSearchIdx != string::npos) {
       distinctQueryTerms.insert(term);
+      c++;
+      startSearchIdx = sentence.find(term, startSearchIdx + 1);
     }
   }
-
   d = distinctQueryTerms.size();
   if (sentence.find(queryStr, 0) != string::npos)
     k = 1;
-
-  return static_cast<int>((wc* c + wd * d + wk * k) * 100);
+  int result = static_cast<int>((wc * c + wd * d + wk * k) * 100);
+  cout << "C : " << c << " D : " << d << " K : " << k << endl;
+  cout << sentence << " SCORE : " << result << endl;
+  return result;
 
 }
 
 vector<string> generateSnippet(int docID, const vector<string>& query) {
   vector<string> result;
-  auto snippetsToShow = 10;
+  auto snippetsToShow = 5;
   priority_queue<pair <string, int>, vector<pair<string, int>>, snippetScoreComparator> snippets;
   vector<string> sentences = breakDocIntoSentences(docID);
   for (const auto& sentence : sentences) {
@@ -1001,10 +1022,12 @@ vector<string> generateSnippet(int docID, const vector<string>& query) {
   }
   int snippetCount = 0;
   while (!snippets.empty() && snippetCount < snippetsToShow) {
+//    cout << get<0>(snippets.top()) << "      :       " << get<1>(snippets.top()) << endl;
     result.push_back(get<0>(snippets.top()));
     snippets.pop();
+    snippetCount++;
   }
-  return sentences;
+  return result;
 }
 
 

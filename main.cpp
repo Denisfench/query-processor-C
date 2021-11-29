@@ -51,6 +51,13 @@ struct termLengthComparator {
   }
 };
 
+
+struct snippetScoreComparator {
+  bool operator()(tuple<string, int>& t1, tuple<string, int>& t2) {
+    return get<1>(t1) <= get<1>(t2);
+  }
+};
+
 // * <term : <indexStartOffset, indexEndOffset, collectionFreqCount> >
 unordered_map <string, tuple<int, int, int>> lexicon;
 
@@ -103,7 +110,7 @@ int getTermDocFreq(const string& term, int docID);
 int getTermColFreq(const string& term);
 int rankDoc(const string& term, int docID);
 vector<int> getTermDocsDiff(const string& term);
-vector<string> generateSnippet(int docID);
+vector<string> generateSnippet(int docID, const vector<string>& query);
 void loadDocMap();
 vector<char> getDocText(int docID);
 vector<string> breakDocIntoSentences(int docID);
@@ -240,7 +247,7 @@ int getDocLength(int docID) {
   return get<1>(docMap[docID]);
 }
 
-
+// TODO: display this score along with the user query
 // rankDoc() takes a term and a docID of the documents containing the term as parameters
 // and returns an integer ranking of that document with respect to the term
 // * fDt is the frequency of the given term in the document with a given docID
@@ -948,5 +955,56 @@ vector<string> breakDocIntoSentences(int docID) {
   return sentences;
 }
 
+
+// * c is the number of query terms including repetitions that appear in
+// * the sentence
+// * d is the number of distinct query terms that appear in the
+// * sentence
+// * k is the contiguous run of the query terms in a sentence
+// * e.g. World War 2
+// * rankSnippet() function returns a weighted combination of c, d, and k
+int rankSnippet(const string& sentence, const vector<string>& query) {
+  // * wc, wd, wk are the corresponding term weights for the terms c, d, and
+  // * k respectively
+  float wc = 0.25;
+  float wd = 0.25;
+  float wk = 0.5;
+  string queryStr;
+  set<string> distinctQueryTerms;
+  int c = 0;
+  int k = 0;
+  uint d;
+
+  for (const string& term : query) {
+    queryStr += term + space;
+    while (sentence.find(term, 0) != string::npos) {
+      c++;
+      distinctQueryTerms.insert(term);
+    }
+  }
+
+  d = distinctQueryTerms.size();
+  if (sentence.find(queryStr, 0) != string::npos)
+    k = 1;
+
+  return static_cast<int>((wc* c + wd * d + wk * k) * 100);
+
+}
+
+vector<string> generateSnippet(int docID, const vector<string>& query) {
+  vector<string> result;
+  auto snippetsToShow = 10;
+  priority_queue<pair <string, int>, vector<pair<string, int>>, snippetScoreComparator> snippets;
+  vector<string> sentences = breakDocIntoSentences(docID);
+  for (const auto& sentence : sentences) {
+    snippets.push(make_pair(sentence, rankSnippet(sentence, query)));
+  }
+  int snippetCount = 0;
+  while (!snippets.empty() && snippetCount < snippetsToShow) {
+    result.push_back(get<0>(snippets.top()));
+    snippets.pop();
+  }
+  return sentences;
+}
 
 

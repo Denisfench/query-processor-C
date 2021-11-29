@@ -106,6 +106,7 @@ vector<int> getTermDocsDiff(const string& term);
 vector<string> generateSnippet(int docID);
 void loadDocMap();
 vector<char> getDocText(int docID);
+vector<string> breakDocIntoSentences(int docID);
 
 // TODO: conjunctive AND ; disjunctive OR -> you've the function names
 //  backwards
@@ -126,11 +127,11 @@ int main() {
 //    printVec(decodedList);
 
     loadDocMap();
-    cout << "getting the doc text" << endl;
-    vector<char> docText = getDocText(3213832);
-    cout << "printing the doc text..." << endl;
-    for (char c : docText)
-      cout << c;
+    cout << "getting the doc sentences" << endl;
+    vector<string> docSentences = breakDocIntoSentences(3213832);
+    cout << "printing the doc sentences..." << endl;
+    for (const string& sentence : docSentences)
+        cout << sentence << endl;
 //    loadLexicon();
 //    loadUrls();
 //    loadDocLocations();
@@ -927,10 +928,25 @@ vector<char> getDocText(int docID) {
   return result;
 }
 
-//vector<string> generateSnippet(int docID) {
-//  // * fetch the document
-//
-//
-//}
+
+vector<string> breakDocIntoSentences(int docID) {
+  set<char> punctuationMarks = {'.', '!', '?'};
+  // * get the document text
+  vector<char> docText = getDocText(docID);
+  // * break the text into sentences
+  vector<string> sentences;
+  vector<char> currSentence;
+  for (char letter : docText) {
+      // * if we've found a sentence
+      currSentence.push_back(letter);
+      if (punctuationMarks.find(letter) != punctuationMarks.end()) {
+        string sentence(currSentence.begin(), currSentence.end());
+        sentences.push_back(sentence);
+        currSentence.clear();
+      }
+  }
+  return sentences;
+}
+
 
 

@@ -147,15 +147,18 @@ int main() {
     query.emplace_back("Trenton");
     query.emplace_back("and");
     query.emplace_back("Princeton");
-    int sRank = rankSnippet("Regardless, by 1777 the British occupied "
-                            "Philadelphia, the seat of the Continental "
-                            "Congress, and sent that body into hiding.", query);
-    cout << "the snippet rank is " << sRank << endl;
-//    cout << "generating a snippet..." << endl;
-//    vector<string> snippet = generateSnippet(3213832, query);
-//    cout << "printing snippet..." << endl;
-//    for (const string& subsnippet : snippet)
-//      cout << subsnippet << "... ";
+
+//    int sRank = rankSnippet("Regardless, by 1777 the British occupied "
+//                            "Philadelphia, the seat of the Continental "
+//                            "Congress, and sent that body into hiding.", query);
+//    cout << "the snippet rank is " << sRank << endl;
+
+    cout << "generating a snippet..." << endl;
+    vector<string> snippet = generateSnippet(3213832, query);
+    cout << "printing snippet..." << endl;
+    for (const string& subsnippet : snippet)
+      cout << subsnippet << "... ";
+
 //    loadLexicon();
 //    loadUrls();
 //    loadDocLocations();
@@ -993,7 +996,7 @@ int rankSnippet(const string& sentence, const vector<string>& query) {
   uint d;
   int startSearchIdx = 0;
   for (const string& term : query) {
-    cout << "Term " << term << endl;
+//    cout << "Term " << term << endl;
     queryStr += term + space;
     startSearchIdx = sentence.find(term, 0);
     while (startSearchIdx != string::npos) {
@@ -1006,15 +1009,15 @@ int rankSnippet(const string& sentence, const vector<string>& query) {
   if (sentence.find(queryStr, 0) != string::npos)
     k = 1;
   int result = static_cast<int>((wc * c + wd * d + wk * k) * 100);
-  cout << "C : " << c << " D : " << d << " K : " << k << endl;
-  cout << sentence << " SCORE : " << result << endl;
+//  cout << "C : " << c << " D : " << d << " K : " << k << endl;
+//  cout << sentence << " SCORE : " << result << endl;
   return result;
 
 }
 
 vector<string> generateSnippet(int docID, const vector<string>& query) {
   vector<string> result;
-  auto snippetsToShow = 5;
+  auto snippetsToShow = 7;
   priority_queue<pair <string, int>, vector<pair<string, int>>, snippetScoreComparator> snippets;
   vector<string> sentences = breakDocIntoSentences(docID);
   for (const auto& sentence : sentences) {

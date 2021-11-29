@@ -93,8 +93,8 @@ vector<char> intersectLists(string term);
 vector<int> VBDecodeVec(const vector<char>& encodedData);
 vector<int> VBDecodeFile(string filename);
 int getDocLength(int docID);
-vector<int> processConjunctive(const string& query);
-vector<int> processDisjunctive(const string& query);
+vector<int> processConjunctive(const vector<string>& query);
+vector<int> processDisjunctive(const vector<string>& queryTerms);
 int getTermFreq(const tuple<vector<int>, int> & docs);
 int VBDecodeByte(const char& byte);
 
@@ -103,7 +103,7 @@ void rankPages(const vector<int>& docs);
 int getTermFreq(string term);
 void loadDocLocations();
 void printDocLocations();
-string getUserInput();
+pair<char, vector<string>> getUserInput();
 void printDocByURL(string URL);
 void printUrls();
 int getTermDocFreq(const string& term, int docID);
@@ -129,89 +129,30 @@ int main() {
     }
 
     // load the lexicon structure into memory
-    cout << "Loading the lexicon into memory..." << endl;
-
-//    vector<int> decodedList = VBDecodeFile(indexFileName);
-//    printVec(decodedList);
+    cout << "Please wait while we are starting our search engine..." << endl;
 
     loadDocMap();
-//    cout << "getting the doc sentences" << endl;
-//    vector<string> docSentences = breakDocIntoSentences(3213832);
-//    cout << "printing the doc sentences..." << endl;
-//    for (const string& sentence : docSentences)
-//        cout << sentence << endl;
+    loadUrls();
 
-    cout << "\n\n\n**********************************\n\n\n" << endl;
+    pair<char, vector<string>> userInput;
+    vector<int> docsFound;
+    userInput = getUserInput();
+    while (true) {
+      if (get<1>(userInput).size() == 1 && get<1>(userInput).at(0) == "Q")
+        break;
 
-    vector<string> query;
-    query.emplace_back("Trenton");
-    query.emplace_back("and");
-    query.emplace_back("Princeton");
+      // * collect the documents based on the user input
+      cout << "Fetching the documents..." << endl;
+      if (get<0>(userInput) == 'C')
+        docsFound = processConjunctive(get<1>(userInput));
+      else
+        docsFound = processDisjunctive(get<1>(userInput));
 
-//    int sRank = rankSnippet("Regardless, by 1777 the British occupied "
-//                            "Philadelphia, the seat of the Continental "
-//                            "Congress, and sent that body into hiding.", query);
-//    cout << "the snippet rank is " << sRank << endl;
+      // * ranking the documents
+      cout << "Ranking the documents..." << endl;
 
-    cout << "generating a snippet..." << endl;
-    vector<string> snippet = generateSnippet(3213832, query);
-    cout << "printing snippet..." << endl;
-    for (const string& subsnippet : snippet)
-      cout << subsnippet << "... ";
-
-//    loadLexicon();
-//    loadUrls();
-//    loadDocLocations();
-////
-//    printDocLocations();
-//    string query = getUserInput();
-//    cout << "testing the implementation of disjunctive query" << endl;
-//    vector<int> result_1 = processDisjunctive("well wellness welcomes water");
-//    printVec(result_1);
-
-//        cout << "\n \n ******************************** \n\n" << endl;
-//        vector<int> termDocs = getTermDocsDiff("well");
-//        printVec(termDocs);
-//        cout << "********************************" << endl;
-
-//      cout << "URL " << getURL(0) << endl;
-//    cout << "testing the implementation of conjunctive query" << endl;
-//    vector<int> result_1 = processConjunctive("well wellness welcomes water");
-//    printVec(result_1);
-
-//    cout << "********************************" << endl;
-//    int termFreq = getTermDocFreq("well", 16);
-//    cout << "termFreq " <<  termFreq << endl;
-//    cout << "********************************" << endl;
-//    int docRank = rankDoc("well", 1);
-//    cout << "The rank of the document is " << docRank << endl;
-
-    // BEGIN PLAYGROUND TEST
-//    tuple<string, int, long, long> termData = make_tuple("http/cats.com", 10, 299, 399);
-//    docMap.insert(make_pair(99, termData));
-//
-//    int termFreq = getTermDocFreq("term", 99);
-//
-//    cout << "The termFreq is " << termFreq << endl;
-    // END PLAYGROUND TEST
-
-    /*
-    int main () {
-        // <docRank docID>
-        tuple<int, int> doc = make_pair(10, 9);
-        tuple<int, int> doc1 = make_pair(10, 300);
-        tuple<int, int> doc2 = make_pair(10, 300);
-        result.push(doc);
-        result.push(doc1);
-        result.push(doc2);
-        pair<int, int> top = result.top();
-        cout << top.first << " " << top.second;
-    */
-
-//    cout << "The docID is " << result.at(0) << endl;
-//    printDocByURL(getURL(result.at(0)));
-//    cout << getURL(result.at(0)) << endl;
-
+      userInput = getUserInput();
+    }
     // close the streams
     indexReader.close();
     URLsInStream.close();
@@ -219,33 +160,23 @@ int main() {
     return 0;
 }
 
-// TODO: docLocations interface has changed
-void printDocByURL(string URL) {
-    tuple<int, long, long> docLocation = docLocations[URL];
-    if (docLocations.empty())
-        cout << "Failed to find the corresponding document" << endl;
-    long docStart = get<1>(docLocation);
-    long docEnd = get<2>(docLocation);
-    long toRead = docEnd - docStart;
-    int count = 0;
-    char nextChar;
-    docCollectionStream.seekg(docStart);
-    while (count < toRead) {
-        docCollectionStream.get(nextChar);
-        cout << nextChar;
-        count++;
-    }
-}
 
-
-string getUserInput() {
-//    char mode;
-//    cout << "Would you like to run conjunctive or disjunctive query? [C] or [D]" << endl;
-//    cin >> mode;
+pair<char, vector<string>> getUserInput() {
+    vector<string> queryTermVec;
+    char mode;
+    cout << "Would you like to run conjunctive or disjunctive query? [C] or "
+            "[D]? ";
+    cin >> mode;
     string query;
-    cout << "Please enter your query" << endl;
+    cout << "Please enter your query or \"Q\" to stop the engine: ";
     cin >> query;
-    return query;
+    // * parse the user query
+    string term;
+    stringstream queryStream(term);
+    while (queryStream >> term)
+      queryTermVec.push_back(term);
+
+    return make_pair(mode, queryTermVec);
 }
 
 
@@ -287,29 +218,22 @@ int rankDoc(const string& term, int docID) {
     return abs(fDt);
 }
 
-// * docMap description
-// * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
-//int getTermDocFreq(const string& term, int docID) {
-////    m.find(key) == m.end()
-//    if (docMap.find(docID) == docMap.end())
-//        cout << "Failed to find the corresponding document" << endl;
-//    long docStart = get<2>(docMap[docID]);
-//    long docEnd = get<3>(docMap[docID]);
-//    char nextByte;
-//    long numBytesToRead = endList - startList;
-//    int count = 0;
-//
-//    indexReader.seekg(startList, ios::beg);
-//
-//    while (count < numBytesToRead) {
-//        indexReader.get(nextByte);
-//        encodedList.push_back(nextByte);
-//        count += 2;
-//        indexReader.get(nextByte);
-//    }
-//
-//    return VBDecodeVec(encodedList);
-//}
+
+vector<pair<int, int>> rankDocs(const vector<string>& query, const
+                                vector<int>& docIds) {
+  vector<pair<int, int>> result;
+  int currDocScore = 0;
+  // * rank every document that we've found
+  for (int docId : docIds) {
+    // * rank each document on every term in the query
+    for (const string& term : query) {
+      currDocScore += rankDoc(term, docId);
+    }
+    result.emplace_back(make_pair(docId, currDocScore));
+  }
+  return result;
+}
+
 
 int getTermDocFreq(const string& term, int docID) {
     if (lexicon.find(term) == lexicon.end()) {
@@ -342,6 +266,7 @@ int getTermDocFreq(const string& term, int docID) {
     }
     return - 1;
 }
+
 
 // * lexicon definition
 // * <term : <indexStartOffset, indexEndOffset, collectionFreqCount> >
@@ -619,17 +544,11 @@ void printVec(T vec) {
 // TODO: the query should be parsed in user input function
 // * a function that takes in a user query as an input and returns all 
 // * documents containing the query as an output 
-vector<int> processConjunctive(const string& query) {
+vector<int> processConjunctive(const vector<string>& queryTerms) {
   set<int> result;
   vector<int> vecResult;
   vector<int> docs;
   int currDocId = 0;
-  // * parse the user query
-  vector<string> queryTerms;
-  string term;
-  stringstream queryStream(query);
-  while (queryStream >> term)
-    queryTerms.push_back(term);
 
   // * the query is empty
   if (queryTerms.empty())
@@ -654,7 +573,7 @@ vector<int> processConjunctive(const string& query) {
 // * a function that takes in a user query as an input and returns all 
 // * documents containing every term in the query 
 // TODO: the query should be parsed in user input function
-vector<int> processDisjunctive(const string& query) {
+vector<int> processDisjunctive(const vector<string>& queryTerms) {
     // * termLists is a min heap mapping terms to their inverted list lengths
     // * <term : invertedListLength>
     priority_queue<tuple<string, int>, vector<tuple<string, int>>,
@@ -664,20 +583,13 @@ vector<int> processDisjunctive(const string& query) {
     vector<int> prevIntersected;
     vector<int> currIntersected;
 
-    // * parse the user query
-    vector<string> queryTerms;
-    string term;
-    stringstream queryStream(query);
-    while (queryStream >> term)
-        queryTerms.push_back(term);
-
     // * the query is empty
     if (queryTerms.empty())
         return currIntersected;
 
     // * query has only 1 term
     if (queryTerms.size() == 1) {
-        term = queryTerms.at(0);
+        string term = queryTerms.at(0);
         // * return the list of documents containing the term
         return getTermDocsDiff(term);
     }

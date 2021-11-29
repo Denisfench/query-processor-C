@@ -105,6 +105,7 @@ int rankDoc(const string& term, int docID);
 vector<int> getTermDocsDiff(const string& term);
 vector<string> generateSnippet(int docID);
 void loadDocMap();
+vector<char> getDocText(int docID);
 
 // TODO: conjunctive AND ; disjunctive OR -> you've the function names
 //  backwards
@@ -125,6 +126,11 @@ int main() {
 //    printVec(decodedList);
 
     loadDocMap();
+    cout << "getting the doc text" << endl;
+    vector<char> docText = getDocText(3213832);
+    cout << "printing the doc text..." << endl;
+    for (char c : docText)
+      cout << c;
 //    loadLexicon();
 //    loadUrls();
 //    loadDocLocations();
@@ -859,7 +865,7 @@ vector<int> VBDecodeFile(string filename) {
     return result;
 }
 
-// * docMap description :
+// * docMap.txt description :
 // * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
 // * http://www.ushistory.org/us/11.asp	3213832 901 23020090760 23020096277
 // * unordered_map <int, tuple<string, int, long, long>> docMap;
@@ -888,6 +894,38 @@ void loadDocMap() {
   docMapStream.close();
 }
 
+
+// * unordered_map <int, tuple<string, int, long, long>> docMap;
+string getDocURL(int docID) {
+  if (docMap.find(docID) == docMap.end()) {
+    cout << "URL of the document with ID " << docID << "couldn't be found" <<
+        endl;
+    return "";
+  }
+  return get<0>(docMap[docID]);
+}
+
+
+vector<char> getDocText(int docID) {
+  vector<char> result;
+  if (docMap.find(docID) == docMap.end()) {
+    cout << "URL of the document with ID " << docID << "couldn't be found" <<
+        endl;
+    return result;
+  }
+  long webDataStartOffset = get<2>(docMap[docID]);
+  long webDataEndOffset = get<3>(docMap[docID]);
+  int charsToRead = webDataEndOffset - webDataStartOffset;
+  int charsRead = 0;
+  char nextChar;
+  docCollectionStream.seekg(webDataStartOffset, ios::beg);
+  while (charsRead < charsToRead) {
+      docCollectionStream.get(nextChar);
+      result.push_back(nextChar);
+      charsRead++;
+  }
+  return result;
+}
 
 //vector<string> generateSnippet(int docID) {
 //  // * fetch the document

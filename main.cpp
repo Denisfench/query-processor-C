@@ -82,7 +82,7 @@ vector<char> intersectLists(string term);
 vector<int> VBDecodeVec(const vector<char>& encodedData);
 vector<int> VBDecodeFile(string filename);
 int getDocLength(int docID);
-tuple<vector<int>, int > processConjunctive(const string& query);
+vector<int> processConjunctive(const string& query);
 vector<int> processDisjunctive(const string& query);
 int getTermFreq(const tuple<vector<int>, int> & docs);
 int VBDecodeByte(const char& byte);
@@ -122,6 +122,7 @@ int main() {
 ////
 //    printDocLocations();
 //    string query = getUserInput();
+    cout << "testing the implementation of disjunctive query" << endl;
     cout << "testing the implementation of disjunctive query" << endl;
     vector<int> result_1 = processDisjunctive("well wellness welcomes water");
     printVec(result_1);
@@ -478,9 +479,7 @@ vector<char> intersectLists(string term) {
 }
 
 
-// TODO: index <ddocID, freq, docID, freq>
-// TODO: you have to be skipping frequencies
-// TODO: you are not reading the encoded list correctly
+// TODO: index <docID, freq, docID, freq>
 vector<int> getTermDocs(string term) {
     vector<char> encodedList;
     vector<int> decodedList;
@@ -499,8 +498,6 @@ vector<int> getTermDocs(string term) {
     long startList = get<0>(termData);
     long endList = get<1>(termData);
 
-    cout << "startList is " << startList << endl;
-    cout << "endList is " << endList << endl;
     char nextByte;
     long numBytesToRead = endList - startList;
     int count = 0;
@@ -513,7 +510,6 @@ vector<int> getTermDocs(string term) {
         count += 2;
         indexReader.get(nextByte);
     }
-
    return VBDecodeVec(encodedList);
 }
 
@@ -568,52 +564,33 @@ void printVec(T vec) {
 }
 
 
-// a function that processes a conjunctive query
-// and a returns a list of documents containing all the
-// terms in a query
-// suppose there are 2 query terms for now
-tuple<vector<int>, int > processConjunctive(const string& query) {
-    int termFreq = 0;
-    vector<int> result;
-    stringstream lineStream(query);
-    string term;
-    lineStream >> term;
-    vector<char> firstInvList = intersectLists(term);
-    vector<int> firstDecodedList = VBDecodeVec(firstInvList);
-    lineStream >> term;
-    vector<char> secInvList = intersectLists(term);
-    vector<int> secDecodedList = VBDecodeVec(secInvList);
-    // <docID, termFreq>
-    unordered_map <int, int> firstList;
-    unordered_map <int, int> secList;
-    for (vector<char>::iterator it = firstInvList.begin(); it != firstInvList.end(); it += 2) {
-        termFreq += *(it + 1);
-        firstList.insert(make_pair(*it, *(it + 1)));
-    }
+// TODO: the query should be parsed in user input function
+// * a function that takes in a user query as an input and returns all 
+// * documents containing the query as an output 
+vector<int> processConjunctive(const string& query) {
+  vector<int> result;
+  vector<int> docs;
+  // * parse the user query
+  vector<string> queryTerms;
+  string term;
+  stringstream queryStream(query);
+  while (queryStream >> term)
+    queryTerms.push_back(term);
 
-    for (vector<char>::iterator it = secInvList.begin(); it != secInvList.end(); it += 2) {
-        termFreq += *(it + 1);
-        secList.insert(make_pair(*it, *(it + 1)));
-    }
+  // * the query is empty
+  if (queryTerms.empty())
+    return result;
 
-    // find the documents containing both query terms
-    // if the first lost is shorter, iterate over it
-    if (firstList.size() < secList.size()) {
-        for (auto entry = firstList.begin(); entry != firstList.end(); entry++) {
-            if (secList.find(entry->first) != secList.end())
-                result.push_back(entry->first);
-        }
-    }
-    else {
-        for (auto entry = secList.begin(); entry != secList.end(); entry++) {
-            if (firstList.find(entry->first) != firstList.end())
-                result.push_back(entry->first);
-        }
-    }
-    return make_pair(result, termFreq);
+  for (const string& word : queryTerms) {
+    docs = getTermDocs(word);
+    result.insert(result.end(), docs.begin(), docs.end());
+  }
+  return result;
 }
 
-// TODO: lexicon has the doc count, no need to return it from here
+
+// * a function that takes in a user query as an input and returns all 
+// * documents containing every term in the query 
 // TODO: the query should be parsed in user input function
 vector<int> processDisjunctive(const string& query) {
     // * termLists is a min heap mapping terms to their inverted list lengths
@@ -799,6 +776,10 @@ vector<int> processDisjunctive(const string& query) {
     // * close list streams
     lp1.close();
     lp2.close();
+    
+    if (currIntersected.empty())
+      cout << "There Aren't Any Great Matches for Your Search" << endl;
+    
     return currIntersected;
 }
 

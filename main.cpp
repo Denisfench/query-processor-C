@@ -167,6 +167,7 @@ int main() {
 
       // * displaying the result
       cout << "Displaying the result..." << endl;
+      cout << "The user input is " << get<1>(userInput).size() << endl;
       showTopNResults(get<1>(userInput), rankedDocs, 10);
 
       // * ask for user input again
@@ -191,7 +192,7 @@ pair<char, vector<string>> getUserInput() {
     cin >> query;
     // * parse the user query
     string term;
-    stringstream queryStream(term);
+    stringstream queryStream(query);
     while (queryStream >> term)
       queryTermVec.push_back(term);
 

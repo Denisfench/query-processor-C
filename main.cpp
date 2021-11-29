@@ -98,8 +98,11 @@ void printUrls();
 int getTermDocFreq(const string& term, int docID);
 int getTermColFreq(const string& term);
 int rankDoc(const string& term, int docID);
+vector<int> getTermDocsDiff(const string& term);
 
 
+// TODO: conjunctive AND ; disjunctive OR -> you've the function names
+//  backwards
 int main() {
     cout << "The main begins!" << endl;
 
@@ -122,9 +125,17 @@ int main() {
 ////
 //    printDocLocations();
 //    string query = getUserInput();
-    cout << "testing the implementation of disjunctive query" << endl;
-    cout << "testing the implementation of disjunctive query" << endl;
-    vector<int> result_1 = processDisjunctive("well wellness welcomes water");
+//    cout << "testing the implementation of disjunctive query" << endl;
+//    vector<int> result_1 = processDisjunctive("well wellness welcomes water");
+//    printVec(result_1);
+
+//        cout << "\n \n ******************************** \n\n" << endl;
+//        vector<int> termDocs = getTermDocsDiff("well");
+//        printVec(termDocs);
+//        cout << "********************************" << endl;
+
+    cout << "testing the implementation of conjunctive query" << endl;
+    vector<int> result_1 = processConjunctive("well wellness welcomes water");
     printVec(result_1);
 
 //    cout << "********************************" << endl;
@@ -480,12 +491,13 @@ vector<char> intersectLists(string term) {
 
 
 // TODO: index <docID, freq, docID, freq>
-vector<int> getTermDocs(string term) {
+vector<int> getTermDocsDiff(const string& term) {
+    cout << "term requested " << term << endl;
     vector<char> encodedList;
     vector<int> decodedList;
     tuple<int, int, int> termData;
-    // retrieve the term data from the lexicon if it is present
 
+    // * retrieve the term data from the lexicon if it is present
     if (lexicon.find(term) != lexicon.end()) {
         termData = lexicon.at(term);
     }
@@ -508,7 +520,7 @@ vector<int> getTermDocs(string term) {
         indexReader.get(nextByte);
         encodedList.push_back(nextByte);
         count += 2;
-        indexReader.get(nextByte);
+        indexReader.get();
     }
    return VBDecodeVec(encodedList);
 }
@@ -568,8 +580,10 @@ void printVec(T vec) {
 // * a function that takes in a user query as an input and returns all 
 // * documents containing the query as an output 
 vector<int> processConjunctive(const string& query) {
-  vector<int> result;
+  set<int> result;
+  vector<int> vecResult;
   vector<int> docs;
+  int currDocId = 0;
   // * parse the user query
   vector<string> queryTerms;
   string term;
@@ -579,13 +593,21 @@ vector<int> processConjunctive(const string& query) {
 
   // * the query is empty
   if (queryTerms.empty())
-    return result;
+    return vecResult;
 
   for (const string& word : queryTerms) {
-    docs = getTermDocs(word);
-    result.insert(result.end(), docs.begin(), docs.end());
+    docs = getTermDocsDiff(word);
+    for (int docIdDiff : docs) {
+      currDocId += docIdDiff;
+      result.insert(currDocId);
+    }
+    currDocId = 0;
   }
-  return result;
+
+  // * copy set into the vector
+  vecResult.assign(result.begin(), result.end());
+
+  return vecResult;
 }
 
 
@@ -617,7 +639,7 @@ vector<int> processDisjunctive(const string& query) {
     if (queryTerms.size() == 1) {
         term = queryTerms.at(0);
         // * return the list of documents containing the term
-        return getTermDocs(term);
+        return getTermDocsDiff(term);
     }
 
     // * if the query has 2 or more terms, then

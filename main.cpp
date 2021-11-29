@@ -22,6 +22,10 @@ const string docPositionsFilename = "doc_locations.txt";
 //const string docCollectionFileName = "testFile.trec";
 const string docCollectionFileName = "../collection-metadata-generator/web_data.trec";
 const string docCollectionDataName = "docCollectionData.txt";
+
+//const string docMapFilename = "docMap.txt";
+const string docMapFilename = "test_docMap.txt";
+
 const int maxDocId = 3213840;
 
 const string quit = "Q";
@@ -99,7 +103,8 @@ int getTermDocFreq(const string& term, int docID);
 int getTermColFreq(const string& term);
 int rankDoc(const string& term, int docID);
 vector<int> getTermDocsDiff(const string& term);
-
+vector<string> generateSnippet(int docID);
+void loadDocMap();
 
 // TODO: conjunctive AND ; disjunctive OR -> you've the function names
 //  backwards
@@ -119,7 +124,8 @@ int main() {
 //    vector<int> decodedList = VBDecodeFile(indexFileName);
 //    printVec(decodedList);
 
-    loadLexicon();
+    loadDocMap();
+//    loadLexicon();
 //    loadUrls();
 //    loadDocLocations();
 ////
@@ -134,9 +140,10 @@ int main() {
 //        printVec(termDocs);
 //        cout << "********************************" << endl;
 
-    cout << "testing the implementation of conjunctive query" << endl;
-    vector<int> result_1 = processConjunctive("well wellness welcomes water");
-    printVec(result_1);
+//      cout << "URL " << getURL(0) << endl;
+//    cout << "testing the implementation of conjunctive query" << endl;
+//    vector<int> result_1 = processConjunctive("well wellness welcomes water");
+//    printVec(result_1);
 
 //    cout << "********************************" << endl;
 //    int termFreq = getTermDocFreq("well", 16);
@@ -208,13 +215,12 @@ string getUserInput() {
 }
 
 
-// - 1 is the adjustment ?
 string getURL(int docID) {
-    cout << "looking for the " << docID - 1 << endl;
-    if (URLs.find(docID - 1) == URLs.end()) {
+    cout << "looking for the " << docID << endl;
+    if (URLs.find(docID) == URLs.end()) {
         return "The URL not found";
     }
-    return URLs[docID - 1];
+    return URLs[docID];
 }
 
 
@@ -852,5 +858,41 @@ vector<int> VBDecodeFile(string filename) {
     }
     return result;
 }
+
+// * docMap description :
+// * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
+// * http://www.ushistory.org/us/11.asp	3213832 901 23020090760 23020096277
+// * unordered_map <int, tuple<string, int, long, long>> docMap;
+void loadDocMap() {
+  ifstream docMapStream(docMapFilename);
+  if (!docMapStream)
+    cerr << "Could not open the " << docMapFilename << endl;
+  string line;
+  int docID;
+  string url;
+  int termCount;
+  long webDataStartOffset;
+  long webDataEndOffset;
+  // * fill in the docMap hash table line by line
+  while (getline(docMapStream, line)) {
+    stringstream lineStream(line);
+    lineStream >> url;
+    lineStream >> docID;
+    lineStream >> termCount;
+    lineStream >> webDataStartOffset;
+    lineStream >> webDataEndOffset;
+    docMap.insert(make_pair(docID, make_tuple(url, termCount,
+                                              webDataStartOffset, webDataEndOffset)));
+  }
+  // * close the stream
+  docMapStream.close();
+}
+
+
+//vector<string> generateSnippet(int docID) {
+//  // * fetch the document
+//
+//
+//}
 
 

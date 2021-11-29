@@ -123,7 +123,7 @@ int main() {
 //    printDocLocations();
 //    string query = getUserInput();
     cout << "testing the implementation of disjunctive query" << endl;
-    vector<int> result_1 = processDisjunctive("well wellness welcomes");
+    vector<int> result_1 = processDisjunctive("well wellness welcomes water");
     printVec(result_1);
 
 //    cout << "********************************" << endl;
@@ -616,7 +616,6 @@ tuple<vector<int>, int > processConjunctive(const string& query) {
 // TODO: lexicon has the doc count, no need to return it from here
 // TODO: the query should be parsed in user input function
 vector<int> processDisjunctive(const string& query) {
-
     // * termLists is a min heap mapping terms to their inverted list lengths
     // * <term : invertedListLength>
     priority_queue<tuple<string, int>, vector<tuple<string, int>>,
@@ -626,8 +625,6 @@ vector<int> processDisjunctive(const string& query) {
     vector<int> prevIntersected;
     vector<int> currIntersected;
 
-    // TODO: we don't need a separate vector for query terms, just use the
-    //  termLengthComparator queue
     // * parse the user query
     vector<string> queryTerms;
     string term;
@@ -646,8 +643,6 @@ vector<int> processDisjunctive(const string& query) {
         return getTermDocs(term);
     }
 
-    // TODO: BELOW WORKS ONLY FOR 2 LISTS, CURRENTLY TESTING THE
-    //  IMPLEMENTATION BEFORE PROCEEDING TO > 2 LISTS
     // * if the query has 2 or more terms, then
     // * all the docs containing the terms must be intersected
 
@@ -669,9 +664,6 @@ vector<int> processDisjunctive(const string& query) {
     termListMap.pop();
     string term2 = get<0>(termListMap.top());
     termListMap.pop();
-
-    cout << "term1 " << term1 << endl;
-    cout << "term2 " << term2 << endl;
 
     // * intersect the first 2 lists
     long startList1 = get<0>(lexicon[term1]);
@@ -703,15 +695,12 @@ vector<int> processDisjunctive(const string& query) {
     decodedByteList1 += VBDecodeByte(nextByteList1);
     decodedByteList2 += VBDecodeByte(nextByteList2);
 
-    cout << "decodedByteList1 " << decodedByteList1 << endl;
-    cout << "decodedByteList2 " << decodedByteList2 << endl;
-
     // * list 1 is smaller than list 2 (min heap condition)
     // * need both conditions in the while loops because of the forward skips
     // * to find the next greatest element
     while (numBytesReadList1 < numBytesToReadList1 &&
            numBytesReadList2 < numBytesToReadList2) {
-    cout << "executed" << endl;
+
       // * move both list pointers forward
       if (decodedByteList1 == decodedByteList2) {
         // * shift the list1 pointer from frequency on the docID
@@ -753,9 +742,7 @@ vector<int> processDisjunctive(const string& query) {
             decodedByteList2 += VBDecodeByte(nextByteList2);
         }
       }
-      cout << "currIntersected after intersecting 2 lists is " << endl;
-      printVec(currIntersected);
-      // TODO: needs to be tested
+
       // * keep intersecting list until we've done it for all query terms
       while (!termListMap.empty()) {
         string nextTerm = get<0>(termListMap.top());
@@ -812,9 +799,6 @@ vector<int> processDisjunctive(const string& query) {
     // * close list streams
     lp1.close();
     lp2.close();
-    cout << " \n\n ************** \n\n" << endl;
-    printVec(currIntersected);
-    cout << " \n \n ************** \n\n" << endl;
     return currIntersected;
 }
 

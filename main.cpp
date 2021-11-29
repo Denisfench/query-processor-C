@@ -58,6 +58,14 @@ struct snippetScoreComparator {
   }
 };
 
+
+// * pair <int, int> : pair <docId, docRank>
+struct docsScoreComparator {
+  bool operator()(pair<int, int>& t1, pair<int, int>& t2) {
+    return get<1>(t1) <= get<1>(t2);
+  }
+};
+
 // * <term : <indexStartOffset, indexEndOffset, collectionFreqCount> >
 unordered_map <string, tuple<int, int, int>> lexicon;
 
@@ -72,8 +80,8 @@ unordered_map <int, tuple<string, int, long, long>> docMap;
 
 // TODO: implement a custom comparator to change the order to <docID : docRank>
 // * <docRank : docId>
-priority_queue<pair <int, int>> top10Results;
-
+priority_queue<pair <int, int>, vector<pair<int, int>>, docsScoreComparator>
+    topNResults;
 template <typename T>
 void printVec(T vec);
 
@@ -115,8 +123,12 @@ void loadDocMap();
 vector<char> getDocText(int docID);
 vector<string> breakDocIntoSentences(int docID);
 int rankSnippet(const string& sentence, const vector<string>& query);
-
-// TODO: conjunctive AND ; disjunctive OR -> you've the function names
+vector<pair<int, int>> rankDocs(const vector<string>& query, const
+                                vector<int>& docIds);
+void showTopNResults(const vector<string>& query, const vector<pair<int,
+                                                                    int>>&
+                                                      docs, int numResultsToShow);
+    // TODO: conjunctive AND ; disjunctive OR -> you've the function names
 //  backwards
 int main() {
     cout << "The main begins!" << endl;
@@ -150,7 +162,14 @@ int main() {
 
       // * ranking the documents
       cout << "Ranking the documents..." << endl;
+      vector<pair<int, int>> rankedDocs = rankDocs(get<1>(userInput),
+          docsFound);
 
+      // * displaying the result
+      cout << "Displaying the result..." << endl;
+      showTopNResults(get<1>(userInput), rankedDocs, 10);
+
+      // * ask for user input again
       userInput = getUserInput();
     }
     // close the streams
@@ -222,6 +241,7 @@ int rankDoc(const string& term, int docID) {
 vector<pair<int, int>> rankDocs(const vector<string>& query, const
                                 vector<int>& docIds) {
   vector<pair<int, int>> result;
+  if (docIds.empty()) return result;
   int currDocScore = 0;
   // * rank every document that we've found
   for (int docId : docIds) {
@@ -943,6 +963,36 @@ vector<string> generateSnippet(int docID, const vector<string>& query) {
     snippetCount++;
   }
   return result;
+}
+
+// * priority_queue<pair <int, int>> topNResults;
+// * pair <int, int> : <docID, docScore>
+void showTopNResults(const vector<string>& query, const vector<pair<int,
+    int>>& docs, int numResultsToShow) {
+  vector<pair<int, int>> docsToShow;
+  for (const pair<int, int>& doc : docs)
+    topNResults.push(doc);
+  int docCount = 0;
+  while (!topNResults.empty() && docCount < numResultsToShow) {
+    docsToShow.push_back(topNResults.top());
+    topNResults.pop();
+    docCount++;
+  }
+
+  // * displaying result to the user...
+  for (const pair<int, int>& doc : docsToShow) {
+    cout << "The document ID is " << doc.first << endl;
+    cout << endl;
+    cout << "The BM25 score is " << doc.second << endl;
+    cout << endl;
+    cout << "The document URL is " << getDocURL(doc.first) << endl;
+    cout << endl;
+    vector<string> snippets = generateSnippet(doc.first, query);
+    cout << "The document snippet is: " << endl;
+    for (const string& subsnippet : snippets)
+      cout << subsnippet << "... ";
+    cout << endl;
+  }
 }
 
 

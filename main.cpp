@@ -106,14 +106,13 @@ void showTopNResults(const vector<string>& query, const vector<pair<int,
                                                       docs, int numResultsToShow);
 
 string toLowerCase(string str);
-    // TODO: conjunctive AND ; disjunctive OR -> you've the function names
-//  backwards
+
+
 int main() {
     cout << "Starting the execution..." << endl;
     auto start = chrono::high_resolution_clock::now();
 
     // error check the streams
-    // TODO: check other streams
     if (!indexReader.is_open()) {
         cerr << "Error opening the index file " << endl;
         exit(1);
@@ -135,21 +134,26 @@ int main() {
       // * collect the documents based on the user input
       cout << "Fetching the documents..." << endl;
       if (get<0>(userInput) == CONJUNCTIVE)
-        docsFound = processDisjunctive(get<1>(userInput));
-      else
         docsFound = processConjunctive(get<1>(userInput));
+      else
+        docsFound = processDisjunctive(get<1>(userInput));
 
       cout << "\n\n\n Result documents are: " << endl;
       printVec(docsFound);
 
       // * ranking the documents
+      // // * rankDocs() : <docID : BM25 score>
       cout << "\n Ranking the documents..." << endl;
       vector<pair<int, int>> rankedDocs = rankDocs(get<1>(userInput),
           docsFound);
 
+      // *********** debugging area ***********
+      for (const pair<int, int>& doc : rankedDocs)
+        cout << "docID " << doc.first << " BM25 score " << doc.second << endl;
+      // *********** debugging area ***********
+
       // * displaying the result
       cout << "Displaying the result..." << endl;
-      cout << "The user input is " << get<1>(userInput).size() << endl;
       showTopNResults(get<1>(userInput), rankedDocs, 10);
 
       // * ask for user input again
@@ -181,7 +185,7 @@ pair<string, vector<string>> getUserInput() {
     string term;
     stringstream queryStream(query);
     while (queryStream >> term)
-      queryTermVec.push_back(term);
+      queryTermVec.push_back(toLowerCase(term));
 
     return make_pair(mode, queryTermVec);
 }
@@ -206,6 +210,7 @@ int getDocLength(int docID) {
 // * b is the constant set to 0.75
 // * d is the document length
 int rankDoc(const string& term, int docID) {
+    cout << "rankDoc() docID " << docID << endl;
     int K = 0;
     int docRank = 0;
     int fDt = getTermDocFreq(term, docID);
@@ -213,10 +218,13 @@ int rankDoc(const string& term, int docID) {
     int d = getDocLength(docID);
     K = k1 * ((1 - b) + b * d / dAvg);
     fDt = log((N - fDt + 0.5) / (fDt + 0.5)) * ((k1 + 1) * fDt / (K + fDt));
-    return abs(fDt);
+    // * if the document rank is negative, set it to 0
+    if (fDt < 0) fDt = 0;
+    return fDt;
 }
 
 
+// * <docID : BM25 score>
 vector<pair<int, int>> rankDocs(const vector<string>& query, const
                                 vector<int>& docIds) {
   vector<pair<int, int>> result;
@@ -226,9 +234,13 @@ vector<pair<int, int>> rankDocs(const vector<string>& query, const
   for (int docId : docIds) {
     // * rank each document on every term in the query
     for (const string& term : query) {
+      cout << "\n\n\n docID " << docId << " Rank : " << rankDoc(term, docId) <<
+          endl;
+      cout << "\n\n\n";
       currDocScore += rankDoc(term, docId);
     }
     result.emplace_back(make_pair(docId, currDocScore));
+    currDocScore = 0;
   }
   return result;
 }
@@ -388,7 +400,7 @@ void loadLexicon() {
 
 // TODO: index <docID, freq, docID, freq>
 vector<int> getTermDocsDiff(const string& term) {
-    cout << "term requested " << term << endl;
+//    cout << "term requested " << term << endl;
     vector<char> encodedList;
     vector<int> decodedList;
     tuple<int, int, int> termData;
@@ -409,10 +421,10 @@ vector<int> getTermDocsDiff(const string& term) {
     char nextByte;
     long numBytesToRead = endList - startList;
     int count = 0;
-    cout << "getTermDocsDiff()" << endl;
-    cout << "start List" << startList << endl;
-    cout << "end List" << endList << endl;
-    cout << "numBytesToRead" << numBytesToRead << endl;
+//    cout << "getTermDocsDiff()" << endl;
+//    cout << "start List" << startList << endl;
+//    cout << "end List" << endList << endl;
+//    cout << "numBytesToRead" << numBytesToRead << endl;
     indexReader.seekg(startList, ios::beg);
 
     while (count < numBytesToRead) {
@@ -422,7 +434,7 @@ vector<int> getTermDocsDiff(const string& term) {
         // * skip over the term frequency
         indexReader.get();
     }
-    cout << "decoding the documents" << endl;
+//    cout << "decoding the documents" << endl;
    return VBDecodeVec(encodedList);
 }
 
@@ -466,7 +478,9 @@ void printVec(T vec) {
 // TODO: the query should be parsed in user input function
 // * a function that takes in a user query as an input and returns all 
 // * documents containing the query as an output 
-vector<int> processDisjunctive(const vector<string>&query) {
+vector<int> processDisjunctive(const vector<string>& query) {
+  cout << "\n vector<string>& query.size() \n " << query.size() << endl;
+
   set<int> result;
   vector<int> vecResult;
   vector<int> docs;
@@ -490,14 +504,13 @@ vector<int> processDisjunctive(const vector<string>&query) {
   // * copy set into the vector
   vecResult.assign(result.begin(), result.end());
 
-  cout << "processDisjunctive returning the result..." << endl;
+//  cout << "processDisjunctive returning the result..." << endl;
   return vecResult;
 }
 
 
 // * a function that takes in a user query as an input and returns all 
 // * documents containing every term in the query 
-// TODO: the query should be parsed in user input function
 vector<int> processConjunctive(const vector<string>& queryTerms) {
     // * termLists is a min heap mapping terms to their inverted list lengths
     // * <term : invertedListLength>
@@ -815,6 +828,8 @@ vector<string> breakDocIntoSentences(int docID) {
 // * e.g. World War 2
 // * rankSnippet() function returns a weighted combination of c, d, and k
 int rankSnippet(const string& sentence, const vector<string>& query) {
+  // stdSentence is the standardized sentence, i.g. all letters are lower-cased
+  string stdSentence = toLowerCase(sentence);
   // * wc, wd, wk are the corresponding term weights for the terms c, d, and
   // * k respectively
   float wc = 0.25;
@@ -829,15 +844,15 @@ int rankSnippet(const string& sentence, const vector<string>& query) {
   for (const string& term : query) {
 //    cout << "Term " << term << endl;
     queryStr += term + space;
-    startSearchIdx = sentence.find(term, 0);
+    startSearchIdx = stdSentence.find(term, 0);
     while (startSearchIdx != string::npos) {
       distinctQueryTerms.insert(term);
       c++;
-      startSearchIdx = sentence.find(term, startSearchIdx + 1);
+      startSearchIdx = stdSentence.find(term, startSearchIdx + 1);
     }
   }
   d = distinctQueryTerms.size();
-  if (sentence.find(queryStr, 0) != string::npos)
+  if (stdSentence.find(queryStr, 0) != string::npos)
     k = 1;
   int result = static_cast<int>((wc * c + wd * d + wk * k) * 100);
 //  cout << "C : " << c << " D : " << d << " K : " << k << endl;

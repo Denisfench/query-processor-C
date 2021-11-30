@@ -38,7 +38,8 @@ const int N = 3213834;
 const int dAvg = 302;
 const float k1 = 2;
 const float b = 0.75;
-const string CONJUNCTIVE = "C";
+const string conjunctive = "C";
+const string disjunctive = "D";
 
 // * customer comparator that allows us to order tuples by the second column
 // * in a priority queue
@@ -106,7 +107,7 @@ void showTopNResults(const vector<string>& query, const vector<pair<int,
                                                       docs, int numResultsToShow);
 
 string toLowerCase(string str);
-
+vector<int> getDocsFromDocDiffs(const vector<int>& docDiffs);
 
 int main() {
     cout << "Starting the execution..." << endl;
@@ -133,10 +134,14 @@ int main() {
 
       // * collect the documents based on the user input
       cout << "Fetching the documents..." << endl;
-      if (get<0>(userInput) == CONJUNCTIVE)
+      if (get<0>(userInput) == conjunctive) {
+        cout << "PROCESSING conjunctive QUERY..." << endl;
         docsFound = processConjunctive(get<1>(userInput));
-      else
+      }
+      else if (get<0>(userInput) == disjunctive)
         docsFound = processDisjunctive(get<1>(userInput));
+      // TODO: change this later
+      else exit(1);
 
       cout << "\n\n\n Result documents are: " << endl;
       printVec(docsFound);
@@ -186,7 +191,6 @@ pair<string, vector<string>> getUserInput() {
     stringstream queryStream(query);
     while (queryStream >> term)
       queryTermVec.push_back(toLowerCase(term));
-
     return make_pair(mode, queryTermVec);
 }
 
@@ -478,7 +482,7 @@ void printVec(T vec) {
 // TODO: the query should be parsed in user input function
 // * a function that takes in a user query as an input and returns all 
 // * documents containing the query as an output 
-vector<int> processDisjunctive(const vector<string>& query) {
+vector<int> processDisjunctive (const vector<string>& query) {
   cout << "\n vector<string>& query.size() \n " << query.size() << endl;
 
   set<int> result;
@@ -509,6 +513,22 @@ vector<int> processDisjunctive(const vector<string>& query) {
 }
 
 
+vector<int> getDocsFromDocDiffs(const vector<int>& docDiffs) {
+  cout << " getDocsFromDocDiffs " << endl;
+  printVec(docDiffs);
+  vector<int> result;
+  if (docDiffs.empty()) return docDiffs;
+  int currDocId = 0;
+  for (int docIdDiff : docDiffs) {
+    currDocId += docIdDiff;
+    result.push_back(currDocId);
+  }
+  cout << " ****** getDocsFromDocDiffs result ***** " << endl;
+  printVec(result);
+  return result;
+}
+
+
 // * a function that takes in a user query as an input and returns all 
 // * documents containing every term in the query 
 vector<int> processConjunctive(const vector<string>& queryTerms) {
@@ -528,9 +548,11 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     // * query has only 1 term
     if (queryTerms.size() == 1) {
         string term = queryTerms.at(0);
-        // * return the list of documents containing the term
-        return getTermDocsDiff(term);
+        // * return the list of differences for the documents containing the
+        // * term
+        return getDocsFromDocDiffs(getTermDocsDiff(term));
     }
+
 
     // * if the query has 2 or more terms, then
     // * all the docs containing the terms must be intersected

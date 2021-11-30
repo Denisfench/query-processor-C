@@ -7,24 +7,22 @@
 #include <cstdlib>
 #include <queue>
 #include <set>
+#include <cctype>
 using namespace std;
 
-//const string indexFileName = "index.bin";
+// TODO: RUN AGAIN ON THE COMPLETE DATASET
+// TODO: IMPLEMENT CASE INSENSITIVE LOOKUPS / MATCHES
 const string indexFileName = "Nov_25_test_index.bin";
+//const string indexFileName = "index.bin";
 
-//const string lexiconFileName = "test_lexicon.txt";
 const string lexiconFileName = "Nov_25_test_lexicon.txt";
+//const string lexiconFileName = "lexicon.txt";
 
-const string testIndexFileName = "test_index.bin";
-//const string urlsFileName = "test_urls.txt";
-const string urlsFileName = "urls_dict.txt";
-const string docPositionsFilename = "doc_locations.txt";
-//const string docCollectionFileName = "testFile.trec";
-const string docCollectionFileName = "../collection-metadata-generator/web_data.trec";
-const string docCollectionDataName = "docCollectionData.txt";
+const string docCollectionFileName = "testFile.trec";
+//const string docCollectionFileName = "../collection-metadata-generator/web_data.trec";
 
-//const string docMapFilename = "docMap.txt";
 const string docMapFilename = "test_docMap.txt";
+//const string docMapFilename = "docMap.txt";
 
 const int maxDocId = 3213840;
 
@@ -40,8 +38,7 @@ const int N = 3213834;
 const int dAvg = 302;
 const float k1 = 2;
 const float b = 0.75;
-const char CONJUNCTIVE = 'C';
-const char DISJUNCTIVE = 'D';
+const string CONJUNCTIVE = "C";
 
 // * customer comparator that allows us to order tuples by the second column
 // * in a priority queue
@@ -69,51 +66,30 @@ struct docsScoreComparator {
 // * <term : <indexStartOffset, indexEndOffset, collectionFreqCount> >
 unordered_map <string, tuple<int, int, int>> lexicon;
 
-// TODO: deprecated, use docMap instead
-unordered_map <int, string> URLs;
-
-// TODO: deprecated, use docMap instead
-unordered_map <string, tuple<int, long, long>> docLocations;
-
 // * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
 unordered_map <int, tuple<string, int, long, long>> docMap;
 
-// TODO: implement a custom comparator to change the order to <docID : docRank>
-// * <docRank : docId>
 priority_queue<pair <int, int>, vector<pair<int, int>>, docsScoreComparator>
     topNResults;
 template <typename T>
 void printVec(T vec);
-
 void printLexicon();
 
 // index is the binary file
 ifstream indexReader(indexFileName, ios::binary);
-ifstream URLsInStream(urlsFileName);
-ifstream docPositionsStream(urlsFileName);
 ifstream docCollectionStream(docCollectionFileName);
-ifstream docCollectionDataIn(docCollectionDataName);
 
 // declare the function prototypes
 void loadLexicon();
-void loadUrls();
 vector<char> intersectLists(string term);
 vector<int> VBDecodeVec(const vector<char>& encodedData);
 vector<int> VBDecodeFile(string filename);
 int getDocLength(int docID);
 vector<int> processConjunctive(const vector<string>& query);
 vector<int> processDisjunctive(const vector<string>& queryTerms);
-int getTermFreq(const tuple<vector<int>, int> & docs);
 int VBDecodeByte(const char& byte);
 
-string getURL(int docID);
-void rankPages(const vector<int>& docs);
-int getTermFreq(string term);
-void loadDocLocations();
-void printDocLocations();
-pair<char, vector<string>> getUserInput();
-void printDocByURL(string URL);
-void printUrls();
+pair<string, vector<string>> getUserInput();
 int getTermDocFreq(const string& term, int docID);
 int getTermColFreq(const string& term);
 int rankDoc(const string& term, int docID);
@@ -128,10 +104,13 @@ vector<pair<int, int>> rankDocs(const vector<string>& query, const
 void showTopNResults(const vector<string>& query, const vector<pair<int,
                                                                     int>>&
                                                       docs, int numResultsToShow);
+
+string toLowerCase(string str);
     // TODO: conjunctive AND ; disjunctive OR -> you've the function names
 //  backwards
 int main() {
-    cout << "The main begins!" << endl;
+    cout << "Starting the execution..." << endl;
+    auto start = chrono::high_resolution_clock::now();
 
     // error check the streams
     // TODO: check other streams
@@ -143,19 +122,19 @@ int main() {
     // load the lexicon structure into memory
     cout << "Please wait while we are starting our search engine..." << endl;
 
+    loadLexicon();
     loadDocMap();
-    loadUrls();
 
-    pair<char, vector<string>> userInput;
+    pair<string, vector<string>> userInput;
     vector<int> docsFound;
     userInput = getUserInput();
     while (true) {
-      if (get<1>(userInput).size() == 1 && get<1>(userInput).at(0) == "Q")
+      if (get<1>(userInput).size() == 1 && get<1>(userInput).at(0) == quit)
         break;
 
       // * collect the documents based on the user input
       cout << "Fetching the documents..." << endl;
-      if (get<0>(userInput) == 'C')
+      if (get<0>(userInput) == CONJUNCTIVE)
         docsFound = processConjunctive(get<1>(userInput));
       else
         docsFound = processDisjunctive(get<1>(userInput));
@@ -171,25 +150,29 @@ int main() {
       showTopNResults(get<1>(userInput), rankedDocs, 10);
 
       // * ask for user input again
+      cout << "\n\n\n" << endl;
       userInput = getUserInput();
     }
     // close the streams
     indexReader.close();
-    URLsInStream.close();
-    docPositionsStream.close();
+    docCollectionStream.close();
+    cout << "Producing execution time report..." << endl;
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = duration_cast <chrono::milliseconds>(stop - start);
+    cout << "The execution time of the program is " << duration.count() << endl;
     return 0;
 }
 
 
-pair<char, vector<string>> getUserInput() {
+pair<string, vector<string>> getUserInput() {
     vector<string> queryTermVec;
-    char mode;
-    cout << "Would you like to run conjunctive or disjunctive query? [C] or "
-            "[D]? ";
-    cin >> mode;
     string query;
     cout << "Please enter your query or \"Q\" to stop the engine: ";
-    cin >> query;
+    getline(cin, query, newline);
+    string mode;
+    cout << "Would you like to run conjunctive or disjunctive query? [C] or "
+            "[D]? ";
+    getline(cin, mode, newline);
     // * parse the user query
     string term;
     stringstream queryStream(query);
@@ -197,15 +180,6 @@ pair<char, vector<string>> getUserInput() {
       queryTermVec.push_back(term);
 
     return make_pair(mode, queryTermVec);
-}
-
-
-string getURL(int docID) {
-    cout << "looking for the " << docID << endl;
-    if (URLs.find(docID) == URLs.end()) {
-        return "The URL not found";
-    }
-    return URLs[docID];
 }
 
 
@@ -258,15 +232,12 @@ vector<pair<int, int>> rankDocs(const vector<string>& query, const
 
 int getTermDocFreq(const string& term, int docID) {
     if (lexicon.find(term) == lexicon.end()) {
-        cout << "There Aren't Any Great Matches for Your Search" << endl;
+        cout << "There Aren't Any Great Matches for Your Search 1" << endl;
         return - 1;
     }
 
     long startList = get<0>(lexicon.at(term));
     long endList = get<1>(lexicon.at(term));
-
-    cout << "start list " << startList << endl;
-    cout << "end list " << endList << endl;
 
     char nextByte;
     long numBytesToRead = endList - startList;
@@ -411,71 +382,6 @@ void loadLexicon() {
 }
 
 
-void loadUrls() {
-
-    string line;
-    string URL;
-    int docId;
-
-    while(getline(URLsInStream, line)) {
-        stringstream lineStream(line);
-        lineStream >> URL;
-        lineStream >> docId;
-        URLs.insert(make_pair(docId, URL));
-    }
-}
-
-
-void loadDocLocations() {
-    string line;
-    string URL;
-    int docId;
-    long docStart;
-    long docEnd;
-    tuple <int, long, long> location;
-    while(getline(docPositionsStream, line)) {
-        stringstream lineStream(line);
-        lineStream >> URL;
-        lineStream >> docId;
-        lineStream >> docStart;
-        lineStream >> docEnd;
-        location = make_tuple(docId, docStart, docEnd);
-        docLocations.insert(make_pair(URL, location));
-    }
-}
-
-
-void printDocLocations() {
-    for (auto const &pair: docLocations)
-        cout << "{" << pair.first << ": " << get<0>(pair.second) <<
-             "," << get<1>(pair.second) << "}\n";
-}
-
-
-vector<char> intersectLists(string term) {
-    vector<int> invertedList;
-    vector<char> encodedInvertedList;
-
-    // retrieve the term data from the lexicon
-    tuple <int, int, int> termData = lexicon.at(term);
-    long startList = get<0>(termData);
-    long endList = get<1>(termData);
-    char nextByte;
-//    long numBytesToRead = endList - startList + 1;
-    long numBytesToRead = endList - startList;
-    int count = 0;
-
-    indexReader.seekg(startList, ios::beg);
-
-    while (count < numBytesToRead) {
-        indexReader.get(nextByte);
-        encodedInvertedList.push_back(nextByte);
-        count++;
-    }
-    return encodedInvertedList;
-}
-
-
 // TODO: index <docID, freq, docID, freq>
 vector<int> getTermDocsDiff(const string& term) {
     cout << "term requested " << term << endl;
@@ -489,7 +395,7 @@ vector<int> getTermDocsDiff(const string& term) {
     }
 
     else {
-        cout << "There Aren't Any Great Matches for Your Search" << endl;
+        cout << "There Aren't Any Great Matches for Your Search 2" << endl;
         return decodedList;
     }
 
@@ -499,15 +405,20 @@ vector<int> getTermDocsDiff(const string& term) {
     char nextByte;
     long numBytesToRead = endList - startList;
     int count = 0;
-
+    cout << "getTermDocsDiff()" << endl;
+    cout << "start List" << startList << endl;
+    cout << "end List" << endList << endl;
+    cout << "numBytesToRead" << numBytesToRead << endl;
     indexReader.seekg(startList, ios::beg);
 
     while (count < numBytesToRead) {
         indexReader.get(nextByte);
         encodedList.push_back(nextByte);
         count += 2;
+        // * skip over the term frequency
         indexReader.get();
     }
+    cout << "decoding the documents" << endl;
    return VBDecodeVec(encodedList);
 }
 
@@ -541,20 +452,6 @@ void printLexicon(unordered_map<string, tuple<int, int, int>>& lexicon) {
 }
 
 
-vector<int> loadAndPrintIndex() {
-    vector<char> invertedList;
-    char nextInt;
-    fstream indexReader(testIndexFileName, ios::in | ios::binary);
-    if (!indexReader.is_open())
-        cerr << "Error opening index file " << endl;
-    while (indexReader) {
-        indexReader.read((char*)& nextInt, sizeof(int));
-        invertedList.push_back(nextInt);
-    }
-    return VBDecodeVec(invertedList);
-}
-
-
 template <typename T>
 void printVec(T vec) {
     for (auto const &elem : vec)
@@ -578,7 +475,9 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
   for (const string& word : queryTerms) {
     docs = getTermDocsDiff(word);
     for (int docIdDiff : docs) {
+      cout << "processConjunctive " << "docIdDiff " << docIdDiff << endl;
       currDocId += docIdDiff;
+      cout << "processConjunctive " << "currDocId " << currDocId << endl;
       result.insert(currDocId);
     }
     currDocId = 0;
@@ -587,6 +486,7 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
   // * copy set into the vector
   vecResult.assign(result.begin(), result.end());
 
+  cout << "processConjunctive returning the result..." << endl;
   return vecResult;
 }
 
@@ -622,7 +522,7 @@ vector<int> processDisjunctive(const vector<string>& queryTerms) {
     // * and ensure that we have terms in the lexicon
     for (const string& queryTerm : queryTerms) {
       if (lexicon.find(queryTerm) == lexicon.end()) {
-      cout << "There Aren't Any Great Matches for Your Search" << endl;
+      cout << "There Aren't Any Great Matches for Your Search 3" << endl;
       return currIntersected;
       }
       termListMap.push(make_pair(queryTerm, get<2>(lexicon[queryTerm])));
@@ -773,7 +673,7 @@ vector<int> processDisjunctive(const vector<string>& queryTerms) {
     lp2.close();
     
     if (currIntersected.empty())
-      cout << "There Aren't Any Great Matches for Your Search" << endl;
+      cout << "There Aren't Any Great Matches for Your Search 4" << endl;
     
     return currIntersected;
 }
@@ -787,12 +687,6 @@ void printLexicon() {
     for (auto const& entry: lexicon) {
         printTuple(entry.first, entry.second);
     }
-}
-
-
-void printUrls() {
-    for (auto const& url: URLs)
-        cout << "docID " << url.first << " " << "URL " << url.second << endl;
 }
 
 
@@ -995,5 +889,14 @@ void showTopNResults(const vector<string>& query, const vector<pair<int,
     cout << endl;
   }
 }
+
+
+string toLowerCase(string str) {
+  string result;
+  for(auto letter : str)
+    result += tolower(letter);
+  return result;
+}
+
 
 

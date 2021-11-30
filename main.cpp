@@ -85,8 +85,8 @@ vector<char> intersectLists(string term);
 vector<int> VBDecodeVec(const vector<char>& encodedData);
 vector<int> VBDecodeFile(string filename);
 int getDocLength(int docID);
-vector<int> processConjunctive(const vector<string>& query);
-vector<int> processDisjunctive(const vector<string>& queryTerms);
+vector<int> processDisjunctive(const vector<string>& query);
+vector<int> processConjunctive(const vector<string>& queryTerms);
 int VBDecodeByte(const char& byte);
 
 pair<string, vector<string>> getUserInput();
@@ -135,12 +135,15 @@ int main() {
       // * collect the documents based on the user input
       cout << "Fetching the documents..." << endl;
       if (get<0>(userInput) == CONJUNCTIVE)
-        docsFound = processConjunctive(get<1>(userInput));
-      else
         docsFound = processDisjunctive(get<1>(userInput));
+      else
+        docsFound = processConjunctive(get<1>(userInput));
+
+      cout << "\n\n\n Result documents are: " << endl;
+      printVec(docsFound);
 
       // * ranking the documents
-      cout << "Ranking the documents..." << endl;
+      cout << "\n Ranking the documents..." << endl;
       vector<pair<int, int>> rankedDocs = rankDocs(get<1>(userInput),
           docsFound);
 
@@ -153,6 +156,7 @@ int main() {
       cout << "\n\n\n" << endl;
       userInput = getUserInput();
     }
+
     // close the streams
     indexReader.close();
     docCollectionStream.close();
@@ -462,22 +466,22 @@ void printVec(T vec) {
 // TODO: the query should be parsed in user input function
 // * a function that takes in a user query as an input and returns all 
 // * documents containing the query as an output 
-vector<int> processConjunctive(const vector<string>& queryTerms) {
+vector<int> processDisjunctive(const vector<string>&query) {
   set<int> result;
   vector<int> vecResult;
   vector<int> docs;
   int currDocId = 0;
 
   // * the query is empty
-  if (queryTerms.empty())
+  if (query.empty())
     return vecResult;
 
-  for (const string& word : queryTerms) {
+  for (const string& word : query) {
     docs = getTermDocsDiff(word);
     for (int docIdDiff : docs) {
-      cout << "processConjunctive " << "docIdDiff " << docIdDiff << endl;
+      cout << "processDisjunctive " << "docIdDiff " << docIdDiff << endl;
       currDocId += docIdDiff;
-      cout << "processConjunctive " << "currDocId " << currDocId << endl;
+      cout << "processDisjunctive " << "currDocId " << currDocId << endl;
       result.insert(currDocId);
     }
     currDocId = 0;
@@ -486,7 +490,7 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
   // * copy set into the vector
   vecResult.assign(result.begin(), result.end());
 
-  cout << "processConjunctive returning the result..." << endl;
+  cout << "processDisjunctive returning the result..." << endl;
   return vecResult;
 }
 
@@ -494,7 +498,7 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
 // * a function that takes in a user query as an input and returns all 
 // * documents containing every term in the query 
 // TODO: the query should be parsed in user input function
-vector<int> processDisjunctive(const vector<string>& queryTerms) {
+vector<int> processConjunctive(const vector<string>& queryTerms) {
     // * termLists is a min heap mapping terms to their inverted list lengths
     // * <term : invertedListLength>
     priority_queue<tuple<string, int>, vector<tuple<string, int>>,

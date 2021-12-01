@@ -125,8 +125,11 @@ int main() {
     printVec(decodedIdx);
     */
   loadLexicon();
-  int freq = getTermDocFreq("hitler", 13);
-  cout << "the frequency is " << freq << endl;
+//  int freq = getTermDocFreq("hitler", 13);
+//  cout << "the frequency is " << freq << endl;
+
+  vector<int> docDiffs = getTermDocsDiff("hitler");
+  printVec(docDiffs);
   // ********** VB decode debugging area ***************
 
   /*
@@ -456,8 +459,7 @@ void loadLexicon() {
 // TODO: index <docID, freq, docID, freq>
 vector<int> getTermDocsDiff(const string& term) {
 //    cout << "term requested " << term << endl;
-    vector<char> encodedList;
-    vector<int> decodedList;
+    vector<int> decodedDocList;
     tuple<int, int, int> termData;
 
     // * retrieve the term data from the lexicon if it is present
@@ -468,7 +470,7 @@ vector<int> getTermDocsDiff(const string& term) {
     else {
         cout << "There Aren't Any Great Matches for Your Search "
               "getTermDocsDiff()" << endl;
-        return decodedList;
+        return decodedDocList;
     }
 
     long startList = get<0>(termData);
@@ -482,16 +484,17 @@ vector<int> getTermDocsDiff(const string& term) {
 //    cout << "end List" << endList << endl;
 //    cout << "numBytesToRead" << numBytesToRead << endl;
     indexReader.seekg(startList, ios::beg);
+    char * buffer = new char [numBytesToRead];
+    indexReader.read(buffer, numBytesToRead);
 
-    while (count < numBytesToRead) {
-        indexReader.get(nextByte);
-        encodedList.push_back(nextByte);
-        count += 2;
-        // * skip over the term frequency
-        indexReader.get();
-    }
+    vector<char> encodedInvertedList(buffer, buffer + numBytesToRead);
+
+    vector<int> decodedInvertedList = VBDecodeVec(encodedInvertedList);
+
+    for (int i = 0; i < decodedInvertedList.size() - 1; i += 2)
+      decodedDocList.push_back(decodedInvertedList.at(i));
 //    cout << "decoding the documents" << endl;
-   return VBDecodeVec(encodedList);
+   return decodedDocList;
 }
 
 

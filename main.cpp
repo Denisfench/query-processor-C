@@ -11,7 +11,6 @@
 using namespace std;
 
 // TODO: RUN AGAIN ON THE COMPLETE DATASET
-// TODO: IMPLEMENT CASE INSENSITIVE LOOKUPS / MATCHES
 const string indexFileName = "Nov_25_test_index.bin";
 //const string indexFileName = "index.bin";
 
@@ -360,8 +359,13 @@ vector<int> VBDecodeVec(const vector<char>& encodedData) {
 }
 
 
-// TODO: something's wrong with this function
+// TODO: the function hangs in case long query is being submitted
+// TODO: seems like the problem is with specific query terms
+// TODO: you can use VBDecodeVec instead, perhaps you've missed smt. in this
+//  one OR you can figure out how it works at the first place
 int VBDecodeByte(const char& byteId) {
+    cout << "VBDecodeByte()" << endl;
+    cout << "byteId " << byteId << endl;
     char c;
     int num;
     int p;
@@ -369,11 +373,14 @@ int VBDecodeByte(const char& byteId) {
     bitset<8> byte(c);
     num = 0;
     p = 0;
+    // TODO: this loop is infinite on some of the terms
     while(byte[7] == 1){
         byte.flip(7);
         num += byte.to_ulong()*pow(128, p);
         p++;
+        c = byteId;
         byte = bitset<8>(c);
+//        cout << "VBDecodeByte() while loop" << endl;
     }
     num = (byte.to_ulong())*pow(128, p);
     cout << "decoded number is " << num << endl;
@@ -558,6 +565,7 @@ vector<int> getDocsFromDocDiffs(const vector<int>& docDiffs) {
 // * a function that takes in a user query as an input and returns all 
 // * documents containing every term in the query 
 vector<int> processConjunctive(const vector<string>& queryTerms) {
+    cout << "Processing conjunctive query" << endl;
     // * termLists is a min heap mapping terms to their inverted list lengths
     // * <term : invertedListLength>
     priority_queue<tuple<string, int>, vector<tuple<string, int>>,

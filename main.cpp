@@ -601,12 +601,12 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
                    termLengthComparator>
         termListMap;
 
-    vector<int> prevIntersected;
-    vector<int> currIntersected;
+    vector<int> prevInterection;
+    vector<int> currIntersection;
 
     // * the query is empty
     if (queryTerms.empty())
-        return currIntersected;
+        return currIntersection;
 
     // * query has only 1 term
     if (queryTerms.size() == 1) {
@@ -626,7 +626,7 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
       cout << "queryTerm " << queryTerm << endl;
       if (lexicon.find(queryTerm) == lexicon.end()) {
       cout << "There Aren't Any Great Matches for Your Search 3" << endl;
-      return currIntersected;
+      return currIntersection;
       }
       termListMap.push(make_pair(queryTerm, get<2>(lexicon[queryTerm])));
     }
@@ -650,135 +650,108 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     char nextByteList1;
     int decodedByteList1 = 0;
     long numBytesToReadList1 = endList1 - startList1;
-    int numBytesReadList1 = 0;
+    int firstListPtr = 0;
 
     char nextByteList2;
     int decodedByteList2 = 0;
     long numBytesToReadList2 = endList2 - startList2;
-    int numBytesReadList2 = 0;
+    int secListPtr = 0;
 
     // * set both streams to point to their
     // * corresponding lists in the index
     lp1.seekg(startList1, ios::beg);
     lp2.seekg(startList2, ios::beg);
 
-    // * grab the initial values for both lists
-    lp1.get(nextByteList1);
-    lp2.get(nextByteList2);
+    char * firstLstBuff = new char[numBytesToReadList1];
+    char * secLstBuff = new char[secListPtr];
 
-    // * decode the values
-    decodedByteList1 += VBDecodeByte(nextByteList1);
-    decodedByteList2 += VBDecodeByte(nextByteList2);
+    // reading 2 inverted lists in blocks
+    lp1.read(firstLstBuff, numBytesToReadList1);
+    lp2.read(secLstBuff, numBytesToReadList2);
 
-    // * list 1 is smaller than list 2 (min heap condition)
-    // * need both conditions in the while loops because of the forward skips
-    // * to find the next greatest element
-    while (numBytesReadList1 < numBytesToReadList1 &&
-           numBytesReadList2 < numBytesToReadList2) {
+    // convert encoded char arrays to vectors
+    vector<char> encodedInvertedList1(firstLstBuff, firstLstBuff + numBytesToReadList1);
+    vector<char> encodedInvertedList2(secLstBuff, secLstBuff + secListPtr);
 
-      // * move both list pointers forward
-      if (decodedByteList1 == decodedByteList2) {
-        // * shift the list1 pointer from frequency on the docID
-        lp1.get();
-        // * grab the next docID in the list 1
-        lp1.get(nextByteList1);
-        // * shift the list2 pointer from frequency on the docID
-        lp2.get();
-        // * grab the next docID in the list 2
-        lp2.get(nextByteList2);
+    // decode both lists
+    vector<int> decodedInvertedList1 = VBDecodeVec(encodedInvertedList1);
+    vector<int> decodedInvertedList2 = VBDecodeVec(encodedInvertedList2);
 
-        // * increment the counters
-        numBytesReadList1 += 2;
-        numBytesReadList2 += 2;
+    while (firstListPtr < decodedInvertedList1.size() &&
+           secListPtr < decodedInvertedList2.size()) {
 
-        // * add the common docID to our result collection
-        currIntersected.push_back(decodedByteList1);
-        decodedByteList1 += VBDecodeByte(nextByteList1);
-        decodedByteList2 += VBDecodeByte(nextByteList2);
-      }
-
-      // * move the first list pointer forward
-      else if (decodedByteList1 < decodedByteList2) {
-          // * shift the list1 pointer from frequency on the docID
-          lp1.get();
-          // * grab the next docID in the list 1
-          lp1.get(nextByteList1);
-          numBytesReadList1 += 2;
-          decodedByteList1 += VBDecodeByte(nextByteList1);
-      }
-
-      // * move the second list pointer forward
-      else {
-          // * shift the list2 pointer from frequency on the docID
-            lp2.get();
-          // * grab the next docID in the list 2
-            lp2.get(nextByteList2);
-            numBytesReadList2 += 2;
-            decodedByteList2 += VBDecodeByte(nextByteList2);
+        // case 1: we've found a common document, store the result and move both pointers forward
+        // skipping over the term frequencies
+        if (decodedInvertedList1.at(firstListPtr) == decodedInvertedList2.at(secListPtr)) {
+            // store the result
+            currIntersection.push_back(decodedInvertedList1.at(firstListPtr));
+            firstListPtr += 2;
+            secListPtr += 2;
         }
-      }
 
-      // * keep intersecting list until we've done it for all query terms
+        // case 2: lp1's docID is smaller than lp2's docID
+        // move the firstListPtr pointer forward until >= docID is found skipping over the frequencies
+        else if (decodedInvertedList1.at(firstListPtr) < decodedInvertedList2.at(secListPtr))
+            firstListPtr += 2;
+
+        // case 3: lp1's docID is greater than lp2's docID
+        // move the secListPtr pointer forward until >= docID is found skipping over the frequencies
+        else secListPtr += 2;
+    }
+
+      // * keep intersecting lists until we've done it for all query terms
       while (!termListMap.empty()) {
         string nextTerm = get<0>(termListMap.top());
         termListMap.pop();
-        prevIntersected = currIntersected;
-        currIntersected.clear();
+        prevInterection = currIntersection;
+        currIntersection.clear();
         long startNextList = get<0>(lexicon[term1]);
         long endNextList = get<1>(lexicon[term1]);
 
         char nextListByte;
         int nextListDecodedByte = 0;
         long nextListBytesToRead = endNextList - startNextList;
-        int nextListBytesRead = 0;
+        int nextListIdx = 0;
+        int prevIntersectionIdx = 0;
 
         // * reusing lp1 pointer
         lp1.seekg(startNextList, ios::beg);
 
-        // * grab the initial values for the next list
-        lp1.get(nextListByte);
+        char * nextListBuff = new char[nextListIdx];
 
-        // * decode the value
-        nextListDecodedByte += VBDecodeByte(nextListByte);
-        int prevListIdx = 0;
+        lp1.read(nextListBuff, nextListBytesToRead);
 
-        while (prevListIdx < prevIntersected.size() &&
-               nextListBytesRead < nextListBytesToRead) {
+        vector<char> encodedNextInvertedList(nextListBuff, nextListBuff + nextListBytesToRead);
 
-          // * if we've found a common document, store the result and advance
-          // * both pointers
-          if (prevIntersected.at(prevListIdx) == nextListDecodedByte) {
-            currIntersected.push_back(nextListDecodedByte);
-            // * shift the next list pointer from frequency on the docID
-            lp1.get();
-            // * grab the next docID in the next list
-            lp1.get(nextListByte);
-            nextListDecodedByte += VBDecodeByte(nextListByte);
-            prevListIdx++;
-          }
+        vector<int> decodedNextInvertedList = VBDecodeVec(encodedNextInvertedList);
 
-          // * advance the previous list pointer
-          else if (prevIntersected.at(prevListIdx) < nextListDecodedByte)
-            prevListIdx++;
+        // intersect the previous intersection result with the next list
+        while (nextListIdx < decodedNextInvertedList.size() && prevIntersectionIdx < prevInterection.size()) {
 
-          // * advance the next list pointer
-          else {
-            // * shift the next list pointer from frequency on the docID
-            lp1.get();
-            // * grab the next docID in the next list
-            lp1.get(nextListByte);
-            nextListDecodedByte += VBDecodeByte(nextListByte);
-          }
+            // case 1: we've found a common document
+            if (prevInterection.at(prevIntersectionIdx) == decodedNextInvertedList.at(nextListIdx)) {
+                // store the result
+                currIntersection.push_back(decodedNextInvertedList.at(nextListIdx));
+                prevIntersectionIdx += 2;
+                nextListIdx += 2;
+            }
+
+            // previous intersected list pointer is pointing at a smaller docID
+            else if (prevInterection.at(prevIntersectionIdx) < decodedNextInvertedList.at(nextListIdx))
+                prevIntersectionIdx += 2;
+
+            else nextListIdx += 2;
+
         }
-      }
+
     // * close list streams
     lp1.close();
     lp2.close();
     
-    if (currIntersected.empty())
+    if (currIntersection.empty())
       cout << "There Aren't Any Great Matches for Your Search 4" << endl;
     
-    return currIntersected;
+    return currIntersection;
 }
 
 void printTuple(const string& term, const tuple<int, int, int>& entry) {

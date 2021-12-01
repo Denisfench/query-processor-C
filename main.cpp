@@ -11,17 +11,17 @@
 using namespace std;
 
 // TODO: RUN AGAIN ON THE COMPLETE DATASET
-const string indexFileName = "Nov_25_test_index.bin";
-//const string indexFileName = "index.bin";
+const string indexFileName = "data/Nov_25_test_index.bin";
+//const string indexFileName = "data/index.bin";
 
-const string lexiconFileName = "Nov_25_test_lexicon.txt";
-//const string lexiconFileName = "lexicon.txt";
+const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
+//const string lexiconFileName = "data/lexicon.txt";
 
-const string docCollectionFileName = "testFile.trec";
-//const string docCollectionFileName = "../collection-metadata-generator/web_data.trec";
+const string docCollectionFileName = "data/testFile.trec";
+//const string docCollectionFileName = "data/web_data.trec";
 
-const string docMapFilename = "test_docMap.txt";
-//const string docMapFilename = "docMap.txt";
+const string docMapFilename = "data/test_docMap.txt";
+//const string docMapFilename = "data/docMap.txt";
 
 const int maxDocId = 3213840;
 
@@ -132,12 +132,11 @@ int main() {
 //  vector<int> docDiffs = getTermDocsDiff("hitler");
 //  printVec(docDiffs);
 
-  vector<char> docText = getDocText(8);
-  for (char letter : docText)
-    cout << letter;
+//  vector<char> docText = getDocText(8);
+//  for (char letter : docText)
+//    cout << letter;
   // ********** VB decode debugging area ***************
 
-  /*
     cout << "Starting the execution..." << endl;
     auto start = chrono::high_resolution_clock::now();
 
@@ -201,7 +200,6 @@ int main() {
     auto stop = chrono::high_resolution_clock::now();
     auto duration = duration_cast <chrono::milliseconds>(stop - start);
     cout << "The execution time of the program is " << duration.count() << endl;
-    */
     return 0;
 }
 
@@ -598,8 +596,8 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     // * termLists is a min heap mapping terms to their inverted list lengths
     // * <term : invertedListLength>
     priority_queue<tuple<string, int>, vector<tuple<string, int>>,
-                   termLengthComparator>
-        termListMap;
+            termLengthComparator>
+            termListMap;
 
     vector<int> prevInterection;
     vector<int> currIntersection;
@@ -622,13 +620,13 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
 
     // * put all the terms in the termListMap min heap
     // * and ensure that we have terms in the lexicon
-    for (const string& queryTerm : queryTerms) {
-      cout << "queryTerm " << queryTerm << endl;
-      if (lexicon.find(queryTerm) == lexicon.end()) {
-      cout << "There Aren't Any Great Matches for Your Search 3" << endl;
-      return currIntersection;
-      }
-      termListMap.push(make_pair(queryTerm, get<2>(lexicon[queryTerm])));
+    for (const string &queryTerm: queryTerms) {
+        cout << "queryTerm " << queryTerm << endl;
+        if (lexicon.find(queryTerm) == lexicon.end()) {
+            cout << "There Aren't Any Great Matches for Your Search 3" << endl;
+            return currIntersection;
+        }
+        termListMap.push(make_pair(queryTerm, get<2>(lexicon[queryTerm])));
     }
 
     // * initialize list streams
@@ -662,8 +660,8 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     lp1.seekg(startList1, ios::beg);
     lp2.seekg(startList2, ios::beg);
 
-    char * firstLstBuff = new char[numBytesToReadList1];
-    char * secLstBuff = new char[secListPtr];
+    char *firstLstBuff = new char[numBytesToReadList1];
+    char *secLstBuff = new char[numBytesToReadList2];
 
     // reading 2 inverted lists in blocks
     lp1.read(firstLstBuff, numBytesToReadList1);
@@ -671,7 +669,7 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
 
     // convert encoded char arrays to vectors
     vector<char> encodedInvertedList1(firstLstBuff, firstLstBuff + numBytesToReadList1);
-    vector<char> encodedInvertedList2(secLstBuff, secLstBuff + secListPtr);
+    vector<char> encodedInvertedList2(secLstBuff, secLstBuff + numBytesToReadList2);
 
     // decode both lists
     vector<int> decodedInvertedList1 = VBDecodeVec(encodedInvertedList1);
@@ -679,7 +677,8 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
 
     while (firstListPtr < decodedInvertedList1.size() &&
            secListPtr < decodedInvertedList2.size()) {
-
+        cout << "List one docID " << decodedInvertedList1.at(firstListPtr) << endl;
+        cout << "List two docID " << decodedInvertedList2.at(secListPtr) << endl;
         // case 1: we've found a common document, store the result and move both pointers forward
         // skipping over the term frequencies
         if (decodedInvertedList1.at(firstListPtr) == decodedInvertedList2.at(secListPtr)) {
@@ -689,18 +688,20 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
             secListPtr += 2;
         }
 
-        // case 2: lp1's docID is smaller than lp2's docID
-        // move the firstListPtr pointer forward until >= docID is found skipping over the frequencies
+            // case 2: lp1's docID is smaller than lp2's docID
+            // move the firstListPtr pointer forward until >= docID is found skipping over the frequencies
         else if (decodedInvertedList1.at(firstListPtr) < decodedInvertedList2.at(secListPtr))
             firstListPtr += 2;
 
-        // case 3: lp1's docID is greater than lp2's docID
-        // move the secListPtr pointer forward until >= docID is found skipping over the frequencies
+            // case 3: lp1's docID is greater than lp2's docID
+            // move the secListPtr pointer forward until >= docID is found skipping over the frequencies
         else secListPtr += 2;
     }
 
-      // * keep intersecting lists until we've done it for all query terms
-      while (!termListMap.empty()) {
+    cout << "\n\n\n ***** intersection of the first and second lists *****\n\n\n" << endl;
+    printVec(currIntersection);
+    // * keep intersecting lists until we've done it for all query terms
+    while (!termListMap.empty()) {
         string nextTerm = get<0>(termListMap.top());
         termListMap.pop();
         prevInterection = currIntersection;
@@ -717,7 +718,7 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
         // * reusing lp1 pointer
         lp1.seekg(startNextList, ios::beg);
 
-        char * nextListBuff = new char[nextListIdx];
+        char *nextListBuff = new char[nextListIdx];
 
         lp1.read(nextListBuff, nextListBytesToRead);
 
@@ -736,7 +737,7 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
                 nextListIdx += 2;
             }
 
-            // previous intersected list pointer is pointing at a smaller docID
+                // previous intersected list pointer is pointing at a smaller docID
             else if (prevInterection.at(prevIntersectionIdx) < decodedNextInvertedList.at(nextListIdx))
                 prevIntersectionIdx += 2;
 
@@ -744,14 +745,15 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
 
         }
 
-    // * close list streams
-    lp1.close();
-    lp2.close();
-    
-    if (currIntersection.empty())
-      cout << "There Aren't Any Great Matches for Your Search 4" << endl;
-    
-    return currIntersection;
+        // * close list streams
+        lp1.close();
+        lp2.close();
+
+        if (currIntersection.empty())
+            cout << "There Aren't Any Great Matches for Your Search 4" << endl;
+
+        return currIntersection;
+    }
 }
 
 void printTuple(const string& term, const tuple<int, int, int>& entry) {

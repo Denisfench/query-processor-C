@@ -125,7 +125,7 @@ int main() {
     printVec(decodedIdx);
     */
   loadLexicon();
-  int freq = getTermDocFreq("hitler", 8);
+  int freq = getTermDocFreq("hitler", 13);
   cout << "the frequency is " << freq << endl;
   // ********** VB decode debugging area ***************
 
@@ -312,8 +312,9 @@ int getTermDocFreq(const string& term, int docID) {
     vector<int> decodedInvertedList = VBDecodeVec(encodedInvertedList);
 
     for (int i = 0; i < decodedInvertedList.size() - 1; i += 2) {
+      currDocId += decodedInvertedList.at(i);
       cout << "entry " << decodedInvertedList.at(i) << endl;
-      if (decodedInvertedList.at(i) == docID)
+      if (currDocId == docID)
         return decodedInvertedList.at(i + 1);
     }
     return - 1;
@@ -465,7 +466,8 @@ vector<int> getTermDocsDiff(const string& term) {
     }
 
     else {
-        cout << "There Aren't Any Great Matches for Your Search 2" << endl;
+        cout << "There Aren't Any Great Matches for Your Search "
+              "getTermDocsDiff()" << endl;
         return decodedList;
     }
 

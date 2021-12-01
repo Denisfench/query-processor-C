@@ -125,11 +125,16 @@ int main() {
     printVec(decodedIdx);
     */
   loadLexicon();
+  loadDocMap();
 //  int freq = getTermDocFreq("hitler", 13);
 //  cout << "the frequency is " << freq << endl;
 
-  vector<int> docDiffs = getTermDocsDiff("hitler");
-  printVec(docDiffs);
+//  vector<int> docDiffs = getTermDocsDiff("hitler");
+//  printVec(docDiffs);
+
+  vector<char> docText = getDocText(8);
+  for (char letter : docText)
+    cout << letter;
   // ********** VB decode debugging area ***************
 
   /*
@@ -862,7 +867,8 @@ string getDocURL(int docID) {
 vector<char> getDocText(int docID) {
   vector<char> result;
   if (docMap.find(docID) == docMap.end()) {
-    cout << "URL of the document with ID " << docID << "couldn't be found" <<
+    cout << "URL (key) of the document with ID " << docID << "couldn't be "
+                                                           "found" <<
         endl;
     return result;
   }
@@ -872,12 +878,13 @@ vector<char> getDocText(int docID) {
   int charsRead = 0;
   char nextChar;
   docCollectionStream.seekg(webDataStartOffset, ios::beg);
-  while (charsRead < charsToRead) {
-      docCollectionStream.get(nextChar);
-      result.push_back(nextChar);
-      charsRead++;
-  }
-  return result;
+
+  char * buffer = new char [charsToRead];
+  docCollectionStream.read(buffer, charsToRead);
+
+  vector<char> text(buffer, buffer + charsToRead);
+
+  return text;
 }
 
 

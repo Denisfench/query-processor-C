@@ -108,10 +108,12 @@ void showTopNResults(const vector<string>& query, const vector<pair<int,
 string toLowerCase(string str);
 vector<int> getDocsFromDocDiffs(const vector<int>& docDiffs);
 vector<char> read_com(ifstream& infile);
+int getTermDocFreq(const string& term, int docID);
 
 int main() {
-  /*
+
   // ********** VB decode debugging area ***************
+  /*
     cout << "decoding a file..." << endl;
 //    vector<int> decodedIdx = VBDecodeFile(indexFileName);
     vector<char> vec = read_com(indexReader);
@@ -121,8 +123,13 @@ int main() {
     for (const char& ch : vec)
         decodedIdx.push_back(VBDecodeByte(ch));
     printVec(decodedIdx);
-  // ********** VB decode debugging area ***************
     */
+  loadLexicon();
+  int freq = getTermDocFreq("hitler", 8);
+  cout << "the frequency is " << freq << endl;
+  // ********** VB decode debugging area ***************
+
+  /*
     cout << "Starting the execution..." << endl;
     auto start = chrono::high_resolution_clock::now();
 
@@ -186,6 +193,7 @@ int main() {
     auto stop = chrono::high_resolution_clock::now();
     auto duration = duration_cast <chrono::milliseconds>(stop - start);
     cout << "The execution time of the program is " << duration.count() << endl;
+    */
     return 0;
 }
 
@@ -296,18 +304,15 @@ int getTermDocFreq(const string& term, int docID) {
     int currDocId = 0;
     indexReader.seekg(startList, ios::beg);
     cout << "getTermDocFreq() numBytesToRead " << numBytesToRead << endl;
+    char * buffer = new char [numBytesToRead];
+    indexReader.read(buffer, numBytesToRead);
 
-    vector<char> encodedInvertedList;
-
-    while (count < numBytesToRead) {
-        indexReader.get(nextByte);
-        encodedInvertedList.push_back(nextByte);
-        count++;
-    }
+    vector<char> encodedInvertedList(buffer, buffer + numBytesToRead);
 
     vector<int> decodedInvertedList = VBDecodeVec(encodedInvertedList);
 
-    for (int i = 0; i < decodedInvertedList.size(); i++) {
+    for (int i = 0; i < decodedInvertedList.size() - 1; i += 2) {
+      cout << "entry " << decodedInvertedList.at(i) << endl;
       if (decodedInvertedList.at(i) == docID)
         return decodedInvertedList.at(i + 1);
     }
@@ -370,6 +375,7 @@ vector<int> VBDecodeVec(const vector<char>& encodedData) {
 }
 
 
+// TODO: It seems like the function in principle might be non-workable
 // TODO: the function hangs in case long query is being submitted
 // TODO: seems like the problem is with specific query terms
 // TODO: you can use VBDecodeVec instead, perhaps you've missed smt. in this
@@ -497,6 +503,8 @@ long openList(const string& term, ifstream& fileStream) {
 }
 
 
+// TODO: the function is currently not in use. We are implementing the same
+//  logic within processConjunctive and processDisjunctive functions.
 int nextGEQ(int currDocId, ifstream& listStream, long endList) {
     char nextByte;
     char docId = - 1;

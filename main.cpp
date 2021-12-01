@@ -107,8 +107,22 @@ void showTopNResults(const vector<string>& query, const vector<pair<int,
 
 string toLowerCase(string str);
 vector<int> getDocsFromDocDiffs(const vector<int>& docDiffs);
+vector<char> read_com(ifstream& infile);
 
 int main() {
+  /*
+  // ********** VB decode debugging area ***************
+    cout << "decoding a file..." << endl;
+//    vector<int> decodedIdx = VBDecodeFile(indexFileName);
+    vector<char> vec = read_com(indexReader);
+    cout << "printing decoded file..." << endl;
+//    printVec(decodedIdx);
+    vector<int> decodedIdx;
+    for (const char& ch : vec)
+        decodedIdx.push_back(VBDecodeByte(ch));
+    printVec(decodedIdx);
+  // ********** VB decode debugging area ***************
+    */
     cout << "Starting the execution..." << endl;
     auto start = chrono::high_resolution_clock::now();
 
@@ -276,29 +290,26 @@ int getTermDocFreq(const string& term, int docID) {
 
     cout << "getTermDocFreq() startList " << startList << endl;
     cout << "getTermDocFreq() endList " << endList << endl;
-
     char nextByte;
     long numBytesToRead = endList - startList;
     int count = 0;
     int currDocId = 0;
     indexReader.seekg(startList, ios::beg);
     cout << "getTermDocFreq() numBytesToRead " << numBytesToRead << endl;
+
+    vector<char> encodedInvertedList;
+
     while (count < numBytesToRead) {
         indexReader.get(nextByte);
-        currDocId += VBDecodeByte(nextByte);
-        cout << "getTermDocFreq() currDocId " << currDocId << endl;
-        cout << "getTermDocFreq() count " << count << endl;
-        if (currDocId == docID) {
-            // * read in the frequency for the given docID
-            indexReader.get(nextByte);
-            cout << "getTermDocFreq() returning " << count << endl;
-            return VBDecodeByte(nextByte);
-        }
-        count += 2;
-          // TODO: the commented out line below seems to be the bug, since we
-        //  TODO: are reading in the document frequency rather than docID
-//        indexReader.get(nextByte);
-        indexReader.get();
+        encodedInvertedList.push_back(nextByte);
+        count++;
+    }
+
+    vector<int> decodedInvertedList = VBDecodeVec(encodedInvertedList);
+
+    for (int i = 0; i < decodedInvertedList.size(); i++) {
+      if (decodedInvertedList.at(i) == docID)
+        return decodedInvertedList.at(i + 1);
     }
     return - 1;
 }
@@ -316,7 +327,7 @@ int getTermColFreq(const string& term) {
 }
 
 
-vector<char> read_com(ifstream& infile){
+vector<char> read_com(ifstream& infile) {
     char c;
     vector<char> result;
     while(infile.get(c)){

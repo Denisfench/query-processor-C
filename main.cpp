@@ -11,19 +11,17 @@
 using namespace std;
 
 // TODO: RUN AGAIN ON THE COMPLETE DATASET
-const string indexFileName = "data/Nov_25_test_index.bin";
-//const string indexFileName = "data/index.bin";
+//const string indexFileName = "data/Nov_25_test_index.bin";
+const string indexFileName = "data/index.bin";
 
-const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
-//const string lexiconFileName = "data/lexicon.txt";
+//const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
+const string lexiconFileName = "data/lexicon.txt";
 
-const string docCollectionFileName = "data/testFile.trec";
-//const string docCollectionFileName = "data/web_data.trec";
+//const string docCollectionFileName = "data/testFile.trec";
+const string docCollectionFileName = "data/web_data.trec";
 
-const string docMapFilename = "data/test_docMap.txt";
-//const string docMapFilename = "data/docMap.txt";
-
-const int maxDocId = 3213840;
+//const string docMapFilename = "data/test_docMap.txt";
+const string docMapFilename = "data/docMap.txt";
 
 const string quit = "Q";
 const char comma = ',';
@@ -113,19 +111,12 @@ int getTermDocFreq(const string& term, int docID);
 int main() {
 
   // ********** VB decode debugging area ***************
-  /*
-    cout << "decoding a file..." << endl;
+//    cout << "decoding a file..." << endl;
 //    vector<int> decodedIdx = VBDecodeFile(indexFileName);
-    vector<char> vec = read_com(indexReader);
-    cout << "printing decoded file..." << endl;
+//    cout << "printing decoded file..." << endl;
 //    printVec(decodedIdx);
-    vector<int> decodedIdx;
-    for (const char& ch : vec)
-        decodedIdx.push_back(VBDecodeByte(ch));
-    printVec(decodedIdx);
-    */
-  loadLexicon();
-  loadDocMap();
+//  loadLexicon();
+//  loadDocMap();
 //  int freq = getTermDocFreq("hitler", 13);
 //  cout << "the frequency is " << freq << endl;
 
@@ -149,7 +140,10 @@ int main() {
     // load the lexicon structure into memory
     cout << "Please wait while we are starting our search engine..." << endl;
 
+    cout << "Loading the lexicon..." << endl;
     loadLexicon();
+
+    cout << "Loading the document map..." << endl;
     loadDocMap();
 
     pair<string, vector<string>> userInput;
@@ -160,7 +154,7 @@ int main() {
         break;
 
       // * collect the documents based on the user input
-      cout << "Fetching the documents..." << endl;
+      cout << "\n Fetching the documents..." << endl;
       if (get<0>(userInput) == conjunctive) {
 //        cout << "PROCESSING conjunctive QUERY..." << endl;
         docsFound = processConjunctive(get<1>(userInput));
@@ -170,24 +164,27 @@ int main() {
       // TODO: change this later
       else exit(1);
 
-      cout << "\n\n\n Result documents are: " << endl;
+      cout << "\n\n Result documents are: " << endl;
       printVec(docsFound);
-
+      cout << endl;
       // * ranking the documents
       // // * rankDocs() : <docID : BM25 score>
-      cout << "\n Ranking the documents..." << endl;
+      cout << "\n\n Ranking the documents..." << endl;
       vector<pair<int, int>> rankedDocs = rankDocs(get<1>(userInput),
           docsFound);
 
+      /*
 //      // *********** debugging area ***********
-//      for (const pair<int, int>& doc : rankedDocs)
-//        cout << "docID " << doc.first << " BM25 score " << doc.second << endl;
+      cout << "********* start printing rankedDocs ************" << endl;
+      for (const pair<int, int>& doc : rankedDocs)
+        cout << "docID " << doc.first << " BM25 score " << doc.second << endl;
+      cout << "********* end printing rankedDocs ************" << endl;
 //      // *********** debugging area ***********
-
+*/
       // * displaying the result
-      cout << "Displaying the result..." << endl;
+      cout << "\n\n Displaying the result..." << endl;
       showTopNResults(get<1>(userInput), rankedDocs, 10);
-
+      cout << endl;
       // * ask for user input again
       cout << "\n\n\n" << endl;
       userInput = getUserInput();
@@ -225,7 +222,7 @@ pair<string, vector<string>> getUserInput() {
 // * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
 int getDocLength(int docID) {
   if (docMap.find(docID) == docMap.end()) {
-    cout << "docID wasn't found in the document map" << endl;
+    cout << "getDocLength() docID wasn't found in the document map..." << endl;
     return -1;
   }
   return get<1>(docMap[docID]);
@@ -241,21 +238,21 @@ int getDocLength(int docID) {
 // * b is the constant set to 0.75
 // * d is the document length
 int rankDoc(const string& term, int docID) {
-    cout << "rankDoc() requested for the docID " << docID << "  on the term "
-       << term << endl;
+//    cout << "rankDoc() requested for the docID " << docID << "  on the term "
+//       << term << endl;
     int K = 0;
     int docRank = 0;
     int fDt = getTermDocFreq(term, docID);
-    cout << "got the term doc freq  " << fDt << endl;
+//    cout << "got the term doc freq  " << fDt << endl;
     int fT = getTermColFreq(term);
-    cout << "got the term collection freq  " << fT << endl;
+//    cout << "got the term collection freq  " << fT << endl;
     int d = getDocLength(docID);
-    cout << "got the document length " << d << endl;
+//    cout << "got the document length " << d << endl;
     K = k1 * ((1 - b) + b * d / dAvg);
     fDt = log((N - fDt + 0.5) / (fDt + 0.5)) * ((k1 + 1) * fDt / (K + fDt));
     // * if the document rank is negative, set it to 0
     if (fDt < 0) fDt = 0;
-    cout << "rankDoc() result " << fDt;
+//    cout << "rankDoc() result " << fDt;
     return fDt;
 }
 
@@ -263,28 +260,28 @@ int rankDoc(const string& term, int docID) {
 // * <docID : BM25 score>
 vector<pair<int, int>> rankDocs(const vector<string>& query, const
                                 vector<int>& docIds) {
-  cout << "The input query is " << endl;
-  for (const string& qTerm : query)
-    cout << qTerm << endl;
+//  cout << "The input query is " << endl;
+//  for (const string& qTerm : query)
+//    cout << qTerm << endl;
   vector<pair<int, int>> result;
   if (docIds.empty()) return result;
   int currDocScore = 0;
   // * rank every document that we've found
   for (int docId : docIds) {
-    cout << "docID " << docId << endl;
+//    cout << "docID " << docId << endl;
     // * rank each document on every term in the query
     for (const string& term : query) {
-      cout << "\n\n\n term " << term << " Rank : " << rankDoc(term, docId) <<
-          endl;
-      cout << "\n\n\n";
+//      cout << "\n\n\n term " << term << " Rank : " << rankDoc(term, docId) <<
+//          endl;
+//      cout << "\n\n\n";
       currDocScore += rankDoc(term, docId);
     }
     result.emplace_back(make_pair(docId, currDocScore));
     currDocScore = 0;
   }
-  cout << "returning result " << endl;
-  for (pair<int, int> ranking : result)
-    cout << "docId " << ranking.first << "rank " << ranking.second << endl;
+//  cout << "returning result " << endl;
+//  for (pair<int, int> ranking : result)
+//    cout << "docId " << ranking.first << "rank " << ranking.second << endl;
 
   return result;
 }
@@ -292,24 +289,25 @@ vector<pair<int, int>> rankDocs(const vector<string>& query, const
 // TODO: the function hangs for some reason
 // * Perhaps it's getting suck in decode byte function?
 int getTermDocFreq(const string& term, int docID) {
-    cout << "getTermDocFreq() term " << term << endl;
-    cout << "getTermDocFreq() docID " << docID << endl;
+//    cout << "getTermDocFreq() term " << term << endl;
+//    cout << "getTermDocFreq() docID " << docID << endl;
     if (lexicon.find(term) == lexicon.end()) {
-        cout << "There Aren't Any Great Matches for Your Search 1" << endl;
+        cout << "getTermDocFreq(): There Aren't Any Great Matches for Your Search..." << endl;
         return - 1;
     }
 
     long startList = get<0>(lexicon.at(term));
     long endList = get<1>(lexicon.at(term));
 
-    cout << "getTermDocFreq() startList " << startList << endl;
-    cout << "getTermDocFreq() endList " << endList << endl;
+//    cout << "getTermDocFreq() startList " << startList << endl;
+//    cout << "getTermDocFreq() endList " << endList << endl;
+
     char nextByte;
     long numBytesToRead = endList - startList;
     int count = 0;
     int currDocId = 0;
     indexReader.seekg(startList, ios::beg);
-    cout << "getTermDocFreq() numBytesToRead " << numBytesToRead << endl;
+//    cout << "getTermDocFreq() numBytesToRead " << numBytesToRead << endl;
     char * buffer = new char [numBytesToRead];
     indexReader.read(buffer, numBytesToRead);
 
@@ -317,12 +315,15 @@ int getTermDocFreq(const string& term, int docID) {
 
     vector<int> decodedInvertedList = VBDecodeVec(encodedInvertedList);
 
+    if (decodedInvertedList.empty()) return - 1;
+
     for (int i = 0; i < decodedInvertedList.size() - 1; i += 2) {
       currDocId += decodedInvertedList.at(i);
-      cout << "entry " << decodedInvertedList.at(i) << endl;
+//      cout << "entry " << decodedInvertedList.at(i) << endl;
       if (currDocId == docID)
         return decodedInvertedList.at(i + 1);
     }
+
     return - 1;
 }
 
@@ -331,7 +332,7 @@ int getTermDocFreq(const string& term, int docID) {
 // * <term : <indexStartOffset, indexEndOffset, collectionFreqCount> >
 int getTermColFreq(const string& term) {
     if (lexicon.find(term) == lexicon.end()) {
-      cout << "We couldn't find the query term " << term << " in our lexicon"
+      cout << "getTermColFreq(): We couldn't find the query term " << term << " in our lexicon"
            << endl;
       return - 1;
     }
@@ -471,21 +472,19 @@ vector<int> getTermDocsDiff(const string& term) {
     }
 
     else {
-        cout << "There Aren't Any Great Matches for Your Search "
-              "getTermDocsDiff()" << endl;
+        cout << "getTermDocsDiff(): There Aren't Any Great Matches for Your Search " << endl;
         return decodedDocList;
     }
 
     long startList = get<0>(termData);
     long endList = get<1>(termData);
 
-    char nextByte;
     long numBytesToRead = endList - startList;
-    int count = 0;
-//    cout << "getTermDocsDiff()" << endl;
-//    cout << "start List" << startList << endl;
-//    cout << "end List" << endList << endl;
-//    cout << "numBytesToRead" << numBytesToRead << endl;
+
+    cout << "getTermDocsDiff()" << endl;
+    cout << "start List" << startList << endl;
+    cout << "end List" << endList << endl;
+    cout << "numBytesToRead" << numBytesToRead << endl;
     indexReader.seekg(startList, ios::beg);
     char * buffer = new char [numBytesToRead];
     indexReader.read(buffer, numBytesToRead);
@@ -494,9 +493,14 @@ vector<int> getTermDocsDiff(const string& term) {
 
     vector<int> decodedInvertedList = VBDecodeVec(encodedInvertedList);
 
-    for (int i = 0; i < decodedInvertedList.size() - 1; i += 2)
-      decodedDocList.push_back(decodedInvertedList.at(i));
-//    cout << "decoding the documents" << endl;
+    if (decodedInvertedList.empty()) return decodedDocList;
+
+    for (int i = 0; i < decodedInvertedList.size() - 1; i += 2) {
+        cout << "i " << i << endl;
+        cout << decodedInvertedList.at(i) << endl;
+        decodedDocList.push_back(decodedInvertedList.at(i));
+    }
+
    return decodedDocList;
 }
 
@@ -575,7 +579,7 @@ vector<int> processDisjunctive (const vector<string>& query) {
 
 vector<int> getDocsFromDocDiffs(const vector<int>& docDiffs) {
 //  cout << " getDocsFromDocDiffs " << endl;
-  printVec(docDiffs);
+//  printVec(docDiffs);
   vector<int> result;
   if (docDiffs.empty()) return docDiffs;
   int currDocId = 0;
@@ -592,7 +596,7 @@ vector<int> getDocsFromDocDiffs(const vector<int>& docDiffs) {
 // * a function that takes in a user query as an input and returns all 
 // * documents containing every term in the query 
 vector<int> processConjunctive(const vector<string>& queryTerms) {
-    cout << "Processing conjunctive query" << endl;
+//    cout << "Processing conjunctive query" << endl;
     // * termLists is a min heap mapping terms to their inverted list lengths
     // * <term : invertedListLength>
     priority_queue<tuple<string, int>, vector<tuple<string, int>>,
@@ -611,6 +615,10 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
         string term = queryTerms.at(0);
         // * return the list of differences for the documents containing the
         // * term
+//        cout << "TERM DOC DIFFS ARE..." << endl;
+//        vector<int> termDocDiffs = getTermDocsDiff(term);
+//        printVec(termDocDiffs);
+//        cout << "TERM DOC DIFFS ARE..." << endl;
         return getDocsFromDocDiffs(getTermDocsDiff(term));
     }
 
@@ -621,9 +629,9 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     // * put all the terms in the termListMap min heap
     // * and ensure that we have terms in the lexicon
     for (const string &queryTerm: queryTerms) {
-        cout << "queryTerm " << queryTerm << endl;
+//        cout << "queryTerm " << queryTerm << endl;
         if (lexicon.find(queryTerm) == lexicon.end()) {
-            cout << "There Aren't Any Great Matches for Your Search 3" << endl;
+            cout << "processConjunctive(): There Aren't Any Great Matches for Your Search" << endl;
             return currIntersection;
         }
         termListMap.push(make_pair(queryTerm, get<2>(lexicon[queryTerm])));
@@ -638,6 +646,9 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     string term2 = get<0>(termListMap.top());
     termListMap.pop();
 
+    cout << "term1 " << term1 << endl;
+    cout << "term2 " << term2 << endl;
+
     // * intersect the first 2 lists
     long startList1 = get<0>(lexicon[term1]);
     long endList1 = get<1>(lexicon[term1]);
@@ -645,15 +656,16 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     long startList2 = get<0>(lexicon[term2]);
     long endList2 = get<1>(lexicon[term2]);
 
-    char nextByteList1;
-    int decodedByteList1 = 0;
     long numBytesToReadList1 = endList1 - startList1;
     int firstListPtr = 0;
 
-    char nextByteList2;
-    int decodedByteList2 = 0;
     long numBytesToReadList2 = endList2 - startList2;
     int secListPtr = 0;
+
+    cout << "numBytesToReadList1 " << numBytesToReadList1 << endl;
+    cout << "numBytesToReadList2 " << numBytesToReadList2 << endl;
+
+    cout << numBytesToReadList2 << endl;
 
     // * set both streams to point to their
     // * corresponding lists in the index
@@ -675,10 +687,15 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     vector<int> decodedInvertedList1 = VBDecodeVec(encodedInvertedList1);
     vector<int> decodedInvertedList2 = VBDecodeVec(encodedInvertedList2);
 
+    cout << "decodedInvertedList1 size: " <<  decodedInvertedList1.size() << endl;
+    printVec(decodedInvertedList1);
+    cout << "decodedInvertedList2 size: " <<  decodedInvertedList2.size() << endl;
+    printVec(decodedInvertedList2);
+
     while (firstListPtr < decodedInvertedList1.size() &&
            secListPtr < decodedInvertedList2.size()) {
-        cout << "List one docID " << decodedInvertedList1.at(firstListPtr) << endl;
-        cout << "List two docID " << decodedInvertedList2.at(secListPtr) << endl;
+//        cout << "List one docID " << decodedInvertedList1.at(firstListPtr) << endl;
+//        cout << "List two docID " << decodedInvertedList2.at(secListPtr) << endl;
         // case 1: we've found a common document, store the result and move both pointers forward
         // skipping over the term frequencies
         if (decodedInvertedList1.at(firstListPtr) == decodedInvertedList2.at(secListPtr)) {
@@ -698,8 +715,9 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
         else secListPtr += 2;
     }
 
-    cout << "\n\n\n ***** intersection of the first and second lists *****\n\n\n" << endl;
+    cout << "\n\n\n ***** intersection of the first and second lists ***** \n\n\n" << endl;
     printVec(currIntersection);
+    cout << "The size of the current intersection is " << currIntersection.size() << endl;
     // * keep intersecting lists until we've done it for all query terms
     while (!termListMap.empty()) {
         string nextTerm = get<0>(termListMap.top());
@@ -750,7 +768,7 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
         lp2.close();
 
         if (currIntersection.empty())
-            cout << "There Aren't Any Great Matches for Your Search 4" << endl;
+            cout << "processConjunctive(): There Aren't Any Great Matches for Your Search" << endl;
 
         return currIntersection;
     }
@@ -785,14 +803,13 @@ vector<int> VBDecodeFile(string filename) {
         while(byte[7] == 1){
             byte.flip(7);
             num += byte.to_ulong()*pow(128, p);
-//            cout << "num " << num << endl;
             p++;
             it ++;
             c = *it;
             byte = bitset<8>(c);
         }
         num += (byte.to_ulong())*pow(128, p);
-
+        cout << num << endl;
         result.push_back(num);
     }
     return result;
@@ -831,7 +848,7 @@ void loadDocMap() {
 // * unordered_map <int, tuple<string, int, long, long>> docMap;
 string getDocURL(int docID) {
   if (docMap.find(docID) == docMap.end()) {
-    cout << "URL of the document with ID " << docID << "couldn't be found" <<
+    cout << "getDocURL() URL of the document with ID " << docID << "couldn't be found" <<
         endl;
     return "";
   }
@@ -842,7 +859,7 @@ string getDocURL(int docID) {
 vector<char> getDocText(int docID) {
   vector<char> result;
   if (docMap.find(docID) == docMap.end()) {
-    cout << "URL (key) of the document with ID " << docID << "couldn't be "
+    cout << "getDocText() URL (key) of the document with ID " << docID << "couldn't be "
                                                            "found" <<
         endl;
     return result;

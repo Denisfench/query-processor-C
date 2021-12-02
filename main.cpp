@@ -110,12 +110,29 @@ int getTermDocFreq(const string& term, int docID);
 
 int main() {
 
+    cout << "loading the lexicon..." << endl;
+    loadLexicon();
+    long startList1 = get<0>(lexicon["russians"]);
+    long endList1 = get<1>(lexicon["russians"]);
+    int numOccurences1 = get<2>(lexicon["russians"]);
+
+    cout << "startList1 " << startList1 << endl;
+    cout << "endList1 " << endList1 << endl;
+    cout << "numOccurences1 " << numOccurences1 << endl;
+
+    long startList2 = get<0>(lexicon["were"]);
+    long endList2 = get<1>(lexicon["were"]);
+    int numOccurences2 = get<2>(lexicon["were"]);
+
+    cout << "startList2 " << startList2 << endl;
+    cout << "endList2 " << endList2 << endl;
+    cout << "numOccurences2 " << numOccurences2 << endl;
+
   // ********** VB decode debugging area ***************
 //    cout << "decoding a file..." << endl;
 //    vector<int> decodedIdx = VBDecodeFile(indexFileName);
 //    cout << "printing decoded file..." << endl;
 //    printVec(decodedIdx);
-//  loadLexicon();
 //  loadDocMap();
 //  int freq = getTermDocFreq("hitler", 13);
 //  cout << "the frequency is " << freq << endl;
@@ -127,7 +144,7 @@ int main() {
 //  for (char letter : docText)
 //    cout << letter;
   // ********** VB decode debugging area ***************
-
+    /*
     cout << "Starting the execution..." << endl;
     auto start = chrono::high_resolution_clock::now();
 
@@ -173,14 +190,13 @@ int main() {
       vector<pair<int, int>> rankedDocs = rankDocs(get<1>(userInput),
           docsFound);
 
-      /*
 //      // *********** debugging area ***********
       cout << "********* start printing rankedDocs ************" << endl;
       for (const pair<int, int>& doc : rankedDocs)
         cout << "docID " << doc.first << " BM25 score " << doc.second << endl;
       cout << "********* end printing rankedDocs ************" << endl;
 //      // *********** debugging area ***********
-*/
+
       // * displaying the result
       cout << "\n\n Displaying the result..." << endl;
       showTopNResults(get<1>(userInput), rankedDocs, 10);
@@ -197,6 +213,7 @@ int main() {
     auto stop = chrono::high_resolution_clock::now();
     auto duration = duration_cast <chrono::milliseconds>(stop - start);
     cout << "The execution time of the program is " << duration.count() << endl;
+    */
     return 0;
 }
 
@@ -413,7 +430,10 @@ int VBDecodeByte(const char& byteId) {
 }
 
 
+/*
 // TODO: parsing logic can be refactored
+// TODO: lexicon isn't working correctly
+//  TODO: look at the invalidated memory warnings
 void loadLexicon() {
     fstream lexiconReader(lexiconFileName, ios::in);
     if (!lexiconReader.is_open())
@@ -451,6 +471,10 @@ void loadLexicon() {
         termEndStream >> termEnd;
         stringstream numDocsStream(temp.at(2));
         numDocsStream >> numTerms;
+        cout << "term " << term << endl;
+        cout << "termStart " << termStart << endl;
+        cout << "termEnd " << termEnd << endl;
+        cout << "numTerms " << numTerms << endl;
         lexicon.insert(make_pair(term, make_tuple(termStart, termEnd, numTerms)));
         temp.clear();
         end = 0;
@@ -458,7 +482,7 @@ void loadLexicon() {
     // close the stream
     lexiconReader.close();
 }
-
+*/
 
 // TODO: index <docID, freq, docID, freq>
 vector<int> getTermDocsDiff(const string& term) {
@@ -656,9 +680,13 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     long startList2 = get<0>(lexicon[term2]);
     long endList2 = get<1>(lexicon[term2]);
 
+    cout << "startList1 " << startList1 << endl;
+    cout << "endList1" << endList1 << endl;
     long numBytesToReadList1 = endList1 - startList1;
     int firstListPtr = 0;
 
+    cout << "startList2 " << startList1 << endl;
+    cout << "endList2" << endList1 << endl;
     long numBytesToReadList2 = endList2 - startList2;
     int secListPtr = 0;
 

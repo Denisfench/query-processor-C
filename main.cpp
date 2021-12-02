@@ -62,7 +62,7 @@ struct docsScoreComparator {
 };
 
 // * <term : <indexStartOffset, indexEndOffset, collectionFreqCount> >
-unordered_map <string, tuple<int, int, int>> lexicon;
+unordered_map <string, tuple<long, long, int>> lexicon;
 
 // * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
 unordered_map <int, tuple<string, int, long, long>> docMap;
@@ -430,6 +430,37 @@ int VBDecodeByte(const char& byteId) {
 }
 
 
+void loadLexicon() {
+
+    ifstream lexiconStream(lexiconFileName);
+    if (!lexiconStream)
+        cerr << "Could not open " << lexiconFileName << endl;
+
+    string line;
+    string term;
+    long startList;
+    long endList;
+    int numTerms;
+
+    while (getline(lexiconStream, line)) {
+        cout << "line " << line << endl;
+        stringstream lineStream(line);
+        getline (lineStream, term, '\t');
+//        lineStream >> term;
+        lineStream >> startList;
+        lineStream >> endList;
+        lineStream >> numTerms;
+        // ******* Debugging ********
+        cout << "term " << term << endl;
+        cout << "startList " << startList << endl;
+        cout << "endList " << endList << endl;
+        cout << "numTerms " << numTerms << endl;
+        // ******* Debugging ********
+        lexicon.insert(make_pair(term, make_tuple(startList, endList, numTerms)));
+    }
+
+    lexiconStream.close();
+}
 /*
 // TODO: parsing logic can be refactored
 // TODO: lexicon isn't working correctly

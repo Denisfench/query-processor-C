@@ -11,17 +11,17 @@
 using namespace std;
 
 // TODO: RUN AGAIN ON THE COMPLETE DATASET
-//const string indexFileName = "data/Nov_25_test_index.bin";
-const string indexFileName = "data/index.bin";
+const string indexFileName = "data/Nov_25_test_index.bin";
+//const string indexFileName = "data/index.bin";
 
-//const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
-const string lexiconFileName = "data/lexicon.txt";
+const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
+//const string lexiconFileName = "data/lexicon.txt";
 
-//const string docCollectionFileName = "data/testFile.trec";
-const string docCollectionFileName = "data/web_data.trec";
+const string docCollectionFileName = "data/testFile.trec";
+//const string docCollectionFileName = "data/web_data.trec";
 
-//const string docMapFilename = "data/test_docMap.txt";
-const string docMapFilename = "data/docMap.txt";
+const string docMapFilename = "data/test_docMap.txt";
+//const string docMapFilename = "data/docMap.txt";
 
 const string quit = "Q";
 const char comma = ',';
@@ -110,6 +110,7 @@ int getTermDocFreq(const string& term, int docID);
 
 int main() {
 
+    /*
     cout << "loading the lexicon..." << endl;
     loadLexicon();
     long startList1 = get<0>(lexicon["russians"]);
@@ -127,6 +128,7 @@ int main() {
     cout << "startList2 " << startList2 << endl;
     cout << "endList2 " << endList2 << endl;
     cout << "numOccurences2 " << numOccurences2 << endl;
+    */
 
   // ********** VB decode debugging area ***************
 //    cout << "decoding a file..." << endl;
@@ -144,7 +146,6 @@ int main() {
 //  for (char letter : docText)
 //    cout << letter;
   // ********** VB decode debugging area ***************
-    /*
     cout << "Starting the execution..." << endl;
     auto start = chrono::high_resolution_clock::now();
 
@@ -213,7 +214,6 @@ int main() {
     auto stop = chrono::high_resolution_clock::now();
     auto duration = duration_cast <chrono::milliseconds>(stop - start);
     cout << "The execution time of the program is " << duration.count() << endl;
-    */
     return 0;
 }
 
@@ -443,7 +443,7 @@ void loadLexicon() {
     int numTerms;
 
     while (getline(lexiconStream, line)) {
-        cout << "line " << line << endl;
+//        cout << "line " << line << endl;
         stringstream lineStream(line);
         getline (lineStream, term, '\t');
 //        lineStream >> term;
@@ -451,10 +451,10 @@ void loadLexicon() {
         lineStream >> endList;
         lineStream >> numTerms;
         // ******* Debugging ********
-        cout << "term " << term << endl;
-        cout << "startList " << startList << endl;
-        cout << "endList " << endList << endl;
-        cout << "numTerms " << numTerms << endl;
+//        cout << "term " << term << endl;
+//        cout << "startList " << startList << endl;
+//        cout << "endList " << endList << endl;
+//        cout << "numTerms " << numTerms << endl;
         // ******* Debugging ********
         lexicon.insert(make_pair(term, make_tuple(startList, endList, numTerms)));
     }
@@ -536,10 +536,10 @@ vector<int> getTermDocsDiff(const string& term) {
 
     long numBytesToRead = endList - startList;
 
-    cout << "getTermDocsDiff()" << endl;
-    cout << "start List" << startList << endl;
-    cout << "end List" << endList << endl;
-    cout << "numBytesToRead" << numBytesToRead << endl;
+//    cout << "getTermDocsDiff()" << endl;
+//    cout << "start List" << startList << endl;
+//    cout << "end List" << endList << endl;
+//    cout << "numBytesToRead" << numBytesToRead << endl;
     indexReader.seekg(startList, ios::beg);
     char * buffer = new char [numBytesToRead];
     indexReader.read(buffer, numBytesToRead);
@@ -551,8 +551,8 @@ vector<int> getTermDocsDiff(const string& term) {
     if (decodedInvertedList.empty()) return decodedDocList;
 
     for (int i = 0; i < decodedInvertedList.size() - 1; i += 2) {
-        cout << "i " << i << endl;
-        cout << decodedInvertedList.at(i) << endl;
+//        cout << "i " << i << endl;
+//        cout << decodedInvertedList.at(i) << endl;
         decodedDocList.push_back(decodedInvertedList.at(i));
     }
 
@@ -743,30 +743,35 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     vector<char> encodedInvertedList2(secLstBuff, secLstBuff + numBytesToReadList2);
 
     // decode both lists
-    vector<int> decodedInvertedList1 = VBDecodeVec(encodedInvertedList1);
-    vector<int> decodedInvertedList2 = VBDecodeVec(encodedInvertedList2);
+    vector<int> decodedInvertedListOne = VBDecodeVec(encodedInvertedList1);
+    vector<int> decodedInvertedListTwo = VBDecodeVec(encodedInvertedList2);
 
-    cout << "decodedInvertedList1 size: " <<  decodedInvertedList1.size() << endl;
-    printVec(decodedInvertedList1);
-    cout << "decodedInvertedList2 size: " <<  decodedInvertedList2.size() << endl;
-    printVec(decodedInvertedList2);
+    vector<int> listOneDocs = getDocsFromDocDiffs(decodedInvertedListOne);
+    vector<int> listTwoDocs = getDocsFromDocDiffs(decodedInvertedListTwo);
 
-    while (firstListPtr < decodedInvertedList1.size() &&
-           secListPtr < decodedInvertedList2.size()) {
-//        cout << "List one docID " << decodedInvertedList1.at(firstListPtr) << endl;
-//        cout << "List two docID " << decodedInvertedList2.at(secListPtr) << endl;
+    cout << "listOneDocs size: " << listOneDocs.size() << endl;
+    printVec(listOneDocs);
+    cout << "listTwoDocs size: " << listTwoDocs.size() << endl;
+    printVec(listTwoDocs);
+
+    while (firstListPtr < listOneDocs.size() &&
+           secListPtr < listTwoDocs.size()) {
+        cout << "firstListPtr " << firstListPtr << endl;
+        cout << "secListPtr " << secListPtr << endl;
+//        cout << "List one docID " << listOneDocs.at(firstListPtr) << endl;
+//        cout << "List two docID " << listTwoDocs.at(secListPtr) << endl;
         // case 1: we've found a common document, store the result and move both pointers forward
         // skipping over the term frequencies
-        if (decodedInvertedList1.at(firstListPtr) == decodedInvertedList2.at(secListPtr)) {
+        if (listOneDocs.at(firstListPtr) == listTwoDocs.at(secListPtr)) {
             // store the result
-            currIntersection.push_back(decodedInvertedList1.at(firstListPtr));
+            currIntersection.push_back(listOneDocs.at(firstListPtr));
             firstListPtr += 2;
             secListPtr += 2;
         }
 
             // case 2: lp1's docID is smaller than lp2's docID
             // move the firstListPtr pointer forward until >= docID is found skipping over the frequencies
-        else if (decodedInvertedList1.at(firstListPtr) < decodedInvertedList2.at(secListPtr))
+        else if (listOneDocs.at(firstListPtr) < listTwoDocs.at(secListPtr))
             firstListPtr += 2;
 
             // case 3: lp1's docID is greater than lp2's docID
@@ -831,6 +836,7 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
 
         return currIntersection;
     }
+    return currIntersection;
 }
 
 void printTuple(const string& term, const tuple<int, int, int>& entry) {

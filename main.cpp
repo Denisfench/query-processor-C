@@ -11,17 +11,17 @@
 using namespace std;
 
 // TODO: RUN AGAIN ON THE COMPLETE DATASET
-//const string indexFileName = "data/Nov_25_test_index.bin";
-const string indexFileName = "data/index.bin";
+const string indexFileName = "data/Nov_25_test_index.bin";
+//const string indexFileName = "data/index.bin";
 
-//const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
-const string lexiconFileName = "data/lexicon.txt";
+const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
+//const string lexiconFileName = "data/lexicon.txt";
 
-//const string docCollectionFileName = "data/testFile.trec";
-const string docCollectionFileName = "data/web_data.trec";
+const string docCollectionFileName = "data/testFile.trec";
+//const string docCollectionFileName = "data/web_data.trec";
 
-//const string docMapFilename = "data/test_docMap.txt";
-const string docMapFilename = "data/docMap.txt";
+const string docMapFilename = "data/test_docMap.txt";
+//const string docMapFilename = "data/docMap.txt";
 
 const string quit = "Q";
 const char comma = ',';
@@ -203,6 +203,10 @@ int main() {
       cout << "\n\n Displaying the result..." << endl;
       showTopNResults(get<1>(userInput), rankedDocs, 10);
       cout << endl;
+
+      cout << "Preparing the engine for the next run..." << endl;
+      topNResults = priority_queue<pair <int, int>, vector<pair<int, int>>, docsScoreComparator>();
+//      TODO: think about other things you might need to clear here...
       // * ask for user input again
       cout << "\n\n\n" << endl;
       userInput = getUserInput();
@@ -320,7 +324,7 @@ int getTermDocFreq(const string& term, int docID) {
     cout << "getTermDocFreq() startList " << startList << endl;
     cout << "getTermDocFreq() endList " << endList << endl;
 
-    long numBytesToRead = endList - startList + 1;
+    long numBytesToRead = endList - startList;
     int currDocId = 0;
     indexReader.seekg(startList, ios::beg);
 
@@ -458,8 +462,7 @@ void loadLexicon() {
 //        cout << "endList " << endList << endl;
 //        cout << "numTerms " << numTerms << endl;
         // ******* Debugging ********
-//        lexicon.insert(make_pair(term, make_tuple(startList + 1, endList, numTerms)));
-        lexicon.insert(make_pair(term, make_tuple(startList, endList - 1, numTerms)));
+        lexicon.insert(make_pair(term, make_tuple(startList, endList, numTerms)));
     }
 
     lexiconStream.close();
@@ -537,7 +540,7 @@ vector<int> getTermDocsDiff(const string& term) {
     long startList = get<0>(termData);
     long endList = get<1>(termData);
 
-    long numBytesToRead = endList - startList + 1;
+    long numBytesToRead = endList - startList;
 
     cout << "\n getTermDocsDiff()" << endl;
     cout << "start List" << startList << endl;
@@ -604,7 +607,7 @@ void printVec(T vec) {
 }
 
 
-// TODO: the query should be parsed in user input function
+// TODO: we can get the doc differences and call docs from differences function
 // * a function that takes in a user query as an input and returns all 
 // * documents containing the query as an output 
 vector<int> processDisjunctive (const vector<string>& query) {
@@ -701,8 +704,10 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     }
 
     // * initialize list streams
-    ifstream lp1(indexFileName, ios::binary);
-    ifstream lp2(indexFileName, ios::binary);
+    // TODO: changing the approach start
+//    ifstream lp1(indexFileName, ios::binary);
+//    ifstream lp2(indexFileName, ios::binary);
+    // TODO: changing the approach end
 
     string term1 = get<0>(termListMap.top());
     termListMap.pop();
@@ -711,53 +716,59 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
 
     cout << "term1 " << term1 << endl;
     cout << "term2 " << term2 << endl;
-
+    // TODO: the logic below can be substituted with a call to getDocsFromDocDiffs(getTermDocsDiff(term));
     // * intersect the first 2 lists
-    long startList1 = get<0>(lexicon[term1]);
-    long endList1 = get<1>(lexicon[term1]);
 
-    long startList2 = get<0>(lexicon[term2]);
-    long endList2 = get<1>(lexicon[term2]);
+    // * TODO: changing the approach start
+//    long startList1 = get<0>(lexicon[term1]);
+//    long endList1 = get<1>(lexicon[term1]);
+//
+//    long startList2 = get<0>(lexicon[term2]);
+//    long endList2 = get<1>(lexicon[term2]);
+//
+//    cout << "startList1 " << startList1 << endl;
+//    cout << "endList1" << endList1 << endl;
+//    long numBytesToReadList1 = endList1 - startList1;
+//    int firstListPtr = 0;
+//
+//    cout << "startList2 " << startList2 << endl;
+//    cout << "endList2" << endList2 << endl;
+//    long numBytesToReadList2 = endList2 - startList2;
+//    int secListPtr = 0;
+//
+//    cout << "numBytesToReadList1 " << numBytesToReadList1 << endl;
+//    cout << "numBytesToReadList2 " << numBytesToReadList2 << endl;
+//
+//    cout << numBytesToReadList2 << endl;
+//
+//    // * set both streams to point to their
+//    // * corresponding lists in the index
+//    lp1.seekg(startList1, ios::beg);
+//    lp2.seekg(startList2, ios::beg);
+//
+//    char *firstLstBuff = new char[numBytesToReadList1];
+//    char *secLstBuff = new char[numBytesToReadList2];
+//
+//    // reading 2 inverted lists in blocks
+//    lp1.read(firstLstBuff, numBytesToReadList1);
+//    lp2.read(secLstBuff, numBytesToReadList2);
+//
+//    // convert encoded char arrays to vectors
+//    vector<char> encodedInvertedList1(firstLstBuff, firstLstBuff + numBytesToReadList1);
+//    vector<char> encodedInvertedList2(secLstBuff, secLstBuff + numBytesToReadList2);
+//
+//    // decode both lists
+//    vector<int> decodedInvertedListOne = VBDecodeVec(encodedInvertedList1);
+//    vector<int> decodedInvertedListTwo = VBDecodeVec(encodedInvertedList2);
+// TODO: changing the approach start
 
-    cout << "startList1 " << startList1 << endl;
-    cout << "endList1" << endList1 << endl;
-    long numBytesToReadList1 = endList1 - startList1 + 1;
+    vector<int> listOneDocs = getDocsFromDocDiffs(getTermDocsDiff(term1));
+    vector<int> listTwoDocs = getDocsFromDocDiffs(getTermDocsDiff(term2));
+
     int firstListPtr = 0;
-
-    cout << "startList2 " << startList1 << endl;
-    cout << "endList2" << endList1 << endl;
-    long numBytesToReadList2 = endList2 - startList2 + 1;
     int secListPtr = 0;
 
-    cout << "numBytesToReadList1 " << numBytesToReadList1 << endl;
-    cout << "numBytesToReadList2 " << numBytesToReadList2 << endl;
-
-    cout << numBytesToReadList2 << endl;
-
-    // * set both streams to point to their
-    // * corresponding lists in the index
-    lp1.seekg(startList1, ios::beg);
-    lp2.seekg(startList2, ios::beg);
-
-    char *firstLstBuff = new char[numBytesToReadList1];
-    char *secLstBuff = new char[numBytesToReadList2];
-
-    // reading 2 inverted lists in blocks
-    lp1.read(firstLstBuff, numBytesToReadList1);
-    lp2.read(secLstBuff, numBytesToReadList2);
-
-    // convert encoded char arrays to vectors
-    vector<char> encodedInvertedList1(firstLstBuff, firstLstBuff + numBytesToReadList1);
-    vector<char> encodedInvertedList2(secLstBuff, secLstBuff + numBytesToReadList2);
-
-    // decode both lists
-    vector<int> decodedInvertedListOne = VBDecodeVec(encodedInvertedList1);
-    vector<int> decodedInvertedListTwo = VBDecodeVec(encodedInvertedList2);
-
-    vector<int> listOneDocs = getDocsFromDocDiffs(decodedInvertedListOne);
-    vector<int> listTwoDocs = getDocsFromDocDiffs(decodedInvertedListTwo);
-
-    cout << "listOneDocs size: " << listOneDocs.size() << endl;
+    cout << "listOneDocs IS of the size: " << listOneDocs.size() << endl;
     printVec(listOneDocs);
     cout << "listTwoDocs size: " << listTwoDocs.size() << endl;
     printVec(listTwoDocs);
@@ -798,26 +809,30 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
         termListMap.pop();
         prevInterection = currIntersection;
         currIntersection.clear();
-        long startNextList = get<0>(lexicon[term1]);
-        long endNextList = get<1>(lexicon[term1]);
 
-        char nextListByte;
-        int nextListDecodedByte = 0;
-        long nextListBytesToRead = endNextList - startNextList;
-        int nextListIdx = 0;
+        // * TODO: changing the approach start
+//        long startNextList = get<0>(lexicon[term1]);
+//        long endNextList = get<1>(lexicon[term1]);
+//
+//        char nextListByte;
+//        int nextListDecodedByte = 0;
+//        long nextListBytesToRead = endNextList - startNextList;
+//        int nextListIdx = 0;
+//        int prevIntersectionIdx = 0;
+//
+//        // * reusing lp1 pointer
+//        lp1.seekg(startNextList, ios::beg);
+//
+//        char *nextListBuff = new char[nextListIdx];
+//
+//        lp1.read(nextListBuff, nextListBytesToRead);
+//
+//        vector<char> encodedNextInvertedList(nextListBuff, nextListBuff + nextListBytesToRead);
+        // * TODO: changing the approach end
+
+        vector<int> decodedNextInvertedList = getDocsFromDocDiffs(getTermDocsDiff(nextTerm));
         int prevIntersectionIdx = 0;
-
-        // * reusing lp1 pointer
-        lp1.seekg(startNextList, ios::beg);
-
-        char *nextListBuff = new char[nextListIdx];
-
-        lp1.read(nextListBuff, nextListBytesToRead);
-
-        vector<char> encodedNextInvertedList(nextListBuff, nextListBuff + nextListBytesToRead);
-
-        vector<int> decodedNextInvertedList = VBDecodeVec(encodedNextInvertedList);
-
+        int nextListIdx = 0;
         // intersect the previous intersection result with the next list
         while (nextListIdx < decodedNextInvertedList.size() && prevIntersectionIdx < prevInterection.size()) {
 
@@ -838,8 +853,10 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
         }
 
         // * close list streams
-        lp1.close();
-        lp2.close();
+        // * TODO: changing the approach start
+//        lp1.close();
+//        lp2.close();
+        // * TODO: changing the approach end
 
         if (currIntersection.empty())
             cout << "processConjunctive(): There Aren't Any Great Matches for Your Search" << endl;

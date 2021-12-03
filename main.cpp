@@ -11,17 +11,17 @@
 using namespace std;
 
 // TODO: RUN AGAIN ON THE COMPLETE DATASET
-const string indexFileName = "data/Nov_25_test_index.bin";
-//const string indexFileName = "data/index.bin";
+//const string indexFileName = "data/Nov_25_test_index.bin";
+const string indexFileName = "data/index.bin";
 
-const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
-//const string lexiconFileName = "data/lexicon.txt";
+//const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
+const string lexiconFileName = "data/lexicon.txt";
 
-const string docCollectionFileName = "data/testFile.trec";
-//const string docCollectionFileName = "data/web_data.trec";
+//const string docCollectionFileName = "data/testFile.trec";
+const string docCollectionFileName = "data/web_data.trec";
 
-const string docMapFilename = "data/test_docMap.txt";
-//const string docMapFilename = "data/docMap.txt";
+//const string docMapFilename = "data/test_docMap.txt";
+const string docMapFilename = "data/docMap.txt";
 
 const string quit = "Q";
 const char comma = ',';

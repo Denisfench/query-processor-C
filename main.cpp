@@ -61,8 +61,8 @@ struct docsScoreComparator {
   }
 };
 
-// * <term : <[indexStartOffset, indexEndOffset), collectionFreqCount> >
-// we are subtracting 1 from indexEndIdx to account for an open range
+// * <term : <(indexStartOffset, indexEndOffset], collectionFreqCount> >
+// we are subtracting 1 from indexStartOffset to account for an open range
 unordered_map <string, tuple<long, long, int>> lexicon;
 
 // * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
@@ -317,15 +317,15 @@ int getTermDocFreq(const string& term, int docID) {
     long startList = get<0>(lexicon.at(term));
     long endList = get<1>(lexicon.at(term));
 
-//    cout << "getTermDocFreq() startList " << startList << endl;
-//    cout << "getTermDocFreq() endList " << endList << endl;
+    cout << "getTermDocFreq() startList " << startList << endl;
+    cout << "getTermDocFreq() endList " << endList << endl;
 
-    char nextByte;
-    long numBytesToRead = endList - startList;
-    int count = 0;
+    long numBytesToRead = endList - startList + 1;
     int currDocId = 0;
     indexReader.seekg(startList, ios::beg);
-//    cout << "getTermDocFreq() numBytesToRead " << numBytesToRead << endl;
+
+    cout << "getTermDocFreq() numBytesToRead " << numBytesToRead << endl;
+
     char * buffer = new char [numBytesToRead];
     indexReader.read(buffer, numBytesToRead);
 
@@ -335,9 +335,10 @@ int getTermDocFreq(const string& term, int docID) {
 
     if (decodedInvertedList.empty()) return - 1;
 
-    for (int i = 0; i < decodedInvertedList.size() - 1; i += 2) {
+    cout << "decodedInvertedList.size() " << decodedInvertedList.size() << endl;
+    for (int i = 0; i < decodedInvertedList.size(); i += 2) {
+      cout << "i " << i << endl;
       currDocId += decodedInvertedList.at(i);
-//      cout << "entry " << decodedInvertedList.at(i) << endl;
       if (currDocId == docID)
         return decodedInvertedList.at(i + 1);
     }
@@ -457,6 +458,7 @@ void loadLexicon() {
 //        cout << "endList " << endList << endl;
 //        cout << "numTerms " << numTerms << endl;
         // ******* Debugging ********
+//        lexicon.insert(make_pair(term, make_tuple(startList + 1, endList, numTerms)));
         lexicon.insert(make_pair(term, make_tuple(startList, endList - 1, numTerms)));
     }
 
@@ -535,12 +537,13 @@ vector<int> getTermDocsDiff(const string& term) {
     long startList = get<0>(termData);
     long endList = get<1>(termData);
 
-    long numBytesToRead = endList - startList;
+    long numBytesToRead = endList - startList + 1;
 
-//    cout << "getTermDocsDiff()" << endl;
-//    cout << "start List" << startList << endl;
-//    cout << "end List" << endList << endl;
-//    cout << "numBytesToRead" << numBytesToRead << endl;
+    cout << "\n getTermDocsDiff()" << endl;
+    cout << "start List" << startList << endl;
+    cout << "end List" << endList << endl;
+    cout << "numBytesToRead" << numBytesToRead << endl;
+
     indexReader.seekg(startList, ios::beg);
     char * buffer = new char [numBytesToRead];
     indexReader.read(buffer, numBytesToRead);
@@ -549,11 +552,13 @@ vector<int> getTermDocsDiff(const string& term) {
 
     vector<int> decodedInvertedList = VBDecodeVec(encodedInvertedList);
 
+    cout << "decodedInvertedList.size() " << decodedInvertedList.size() << endl;
+
     if (decodedInvertedList.empty()) return decodedDocList;
 
-    for (int i = 0; i < decodedInvertedList.size() - 1; i += 2) {
-//        cout << "i " << i << endl;
-//        cout << decodedInvertedList.at(i) << endl;
+    for (int i = 0; i < decodedInvertedList.size(); i += 2) {
+        cout << "i " << i << endl;
+        cout << decodedInvertedList.at(i) << endl;
         decodedDocList.push_back(decodedInvertedList.at(i));
     }
 
@@ -615,11 +620,13 @@ vector<int> processDisjunctive (const vector<string>& query) {
     return vecResult;
 
   for (const string& word : query) {
+      cout << "###### term " << word << endl;
     docs = getTermDocsDiff(word);
-    for (int docIdDiff : docs) {
-//      cout << "processDisjunctive " << "docIdDiff " << docIdDiff << endl;
+      cout << "@@@@@@ processDisjunctive " << "docIdDiff " << endl;
+      printVec(docs);
+      for (int docIdDiff : docs) {
       currDocId += docIdDiff;
-//      cout << "processDisjunctive " << "currDocId " << currDocId << endl;
+      cout << "$$$$$$ processDisjunctive " << "currDocId " << currDocId << endl;
       result.insert(currDocId);
     }
     currDocId = 0;
@@ -714,12 +721,12 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
 
     cout << "startList1 " << startList1 << endl;
     cout << "endList1" << endList1 << endl;
-    long numBytesToReadList1 = endList1 - startList1;
+    long numBytesToReadList1 = endList1 - startList1 + 1;
     int firstListPtr = 0;
 
     cout << "startList2 " << startList1 << endl;
     cout << "endList2" << endList1 << endl;
-    long numBytesToReadList2 = endList2 - startList2;
+    long numBytesToReadList2 = endList2 - startList2 + 1;
     int secListPtr = 0;
 
     cout << "numBytesToReadList1 " << numBytesToReadList1 << endl;

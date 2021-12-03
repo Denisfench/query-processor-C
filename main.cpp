@@ -783,6 +783,8 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     cout << "\n\n\n ***** intersection of the first and second lists ***** \n\n\n" << endl;
     printVec(currIntersection);
     cout << "The size of the current intersection is " << currIntersection.size() << endl;
+    // queue being empty means we had only 2 terms / lists to begin with
+    if (termListMap.empty()) return currIntersection;
     // * keep intersecting lists until we've done it for all query terms
     while (!termListMap.empty()) {
         string nextTerm = get<0>(termListMap.top());
@@ -835,7 +837,6 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
         if (currIntersection.empty())
             cout << "processConjunctive(): There Aren't Any Great Matches for Your Search" << endl;
 
-        return currIntersection;
     }
     return currIntersection;
 }

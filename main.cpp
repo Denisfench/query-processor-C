@@ -61,7 +61,8 @@ struct docsScoreComparator {
   }
 };
 
-// * <term : <indexStartOffset, indexEndOffset, collectionFreqCount> >
+// * <term : <[indexStartOffset, indexEndOffset), collectionFreqCount> >
+// we are subtracting 1 from indexEndIdx to account for an open range
 unordered_map <string, tuple<long, long, int>> lexicon;
 
 // * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
@@ -456,7 +457,7 @@ void loadLexicon() {
 //        cout << "endList " << endList << endl;
 //        cout << "numTerms " << numTerms << endl;
         // ******* Debugging ********
-        lexicon.insert(make_pair(term, make_tuple(startList, endList, numTerms)));
+        lexicon.insert(make_pair(term, make_tuple(startList, endList - 1, numTerms)));
     }
 
     lexiconStream.close();

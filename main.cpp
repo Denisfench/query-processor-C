@@ -765,18 +765,18 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
         if (listOneDocs.at(firstListPtr) == listTwoDocs.at(secListPtr)) {
             // store the result
             currIntersection.push_back(listOneDocs.at(firstListPtr));
-            firstListPtr += 2;
-            secListPtr += 2;
+            firstListPtr++;
+            secListPtr++;
         }
 
             // case 2: lp1's docID is smaller than lp2's docID
             // move the firstListPtr pointer forward until >= docID is found skipping over the frequencies
         else if (listOneDocs.at(firstListPtr) < listTwoDocs.at(secListPtr))
-            firstListPtr += 2;
+            firstListPtr++;
 
             // case 3: lp1's docID is greater than lp2's docID
             // move the secListPtr pointer forward until >= docID is found skipping over the frequencies
-        else secListPtr += 2;
+        else secListPtr++;
     }
 
     cout << "\n\n\n ***** intersection of the first and second lists ***** \n\n\n" << endl;

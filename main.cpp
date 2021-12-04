@@ -11,17 +11,21 @@
 using namespace std;
 
 // TODO: RUN AGAIN ON THE COMPLETE DATASET
-const string indexFileName = "data/Nov_25_test_index.bin";
+//const string indexFileName = "data/Nov_25_test_index.bin";
 //const string indexFileName = "data/index.bin";
+const string indexFileName = "data/small_index.bin";
 
-const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
+//const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
 //const string lexiconFileName = "data/lexicon.txt";
+const string lexiconFileName = "data/small_lexicon.txt";
 
-const string docCollectionFileName = "data/testFile.trec";
+//const string docCollectionFileName = "data/testFile.trec";
 //const string docCollectionFileName = "data/web_data.trec";
+const string docCollectionFileName = "data/small_web_data.trec";
 
-const string docMapFilename = "data/test_docMap.txt";
+//const string docMapFilename = "data/test_docMap.txt";
 //const string docMapFilename = "data/docMap.txt";
+const string docMapFilename = "data/small_docMap.txt";
 
 const string quit = "Q";
 const char comma = ',';
@@ -152,7 +156,7 @@ int main() {
 
     // error check the streams
     if (!indexReader.is_open()) {
-        cerr << "Error opening the index file " << endl;
+        cerr << "Cannot open " << indexFileName << endl;
         exit(1);
     }
 
@@ -167,7 +171,7 @@ int main() {
 
     pair<string, vector<string>> userInput;
     vector<int> docsFound;
-    userInput = getUserInput();
+    getUserInput: userInput = getUserInput();
     while (true) {
       if (get<1>(userInput).size() == 1 && get<1>(userInput).at(0) == quit)
         break;
@@ -177,11 +181,20 @@ int main() {
       if (get<0>(userInput) == conjunctive) {
 //        cout << "PROCESSING conjunctive QUERY..." << endl;
         docsFound = processConjunctive(get<1>(userInput));
+        if (docsFound.at(0) == -1)
+            goto getUserInput;
       }
-      else if (get<0>(userInput) == disjunctive)
-        docsFound = processDisjunctive(get<1>(userInput));
-      // TODO: change this later
-      else exit(1);
+      else if (get<0>(userInput) == disjunctive) {
+          docsFound = processDisjunctive(get<1>(userInput));
+          if (docsFound.at(0) == -1)
+              goto getUserInput;
+      }
+
+      // input is invalid
+      else {
+          cout << "Your menu selection is invalid. Please try again." << endl;
+          goto getUserInput;
+      }
 
       cout << "\n\n Result documents are: " << endl;
       printVec(docsFound);
@@ -543,9 +556,9 @@ vector<int> getTermDocsDiff(const string& term) {
     long numBytesToRead = endList - startList;
 
     cout << "\n getTermDocsDiff()" << endl;
-    cout << "start List" << startList << endl;
-    cout << "end List" << endList << endl;
-    cout << "numBytesToRead" << numBytesToRead << endl;
+    cout << "start List " << startList << endl;
+    cout << "end List " << endList << endl;
+    cout << "numBytesToRead " << numBytesToRead << endl;
 
     indexReader.seekg(startList, ios::beg);
     char * buffer = new char [numBytesToRead];
@@ -647,7 +660,7 @@ vector<int> getDocsFromDocDiffs(const vector<int>& docDiffs) {
 //  cout << " getDocsFromDocDiffs " << endl;
 //  printVec(docDiffs);
   vector<int> result;
-  if (docDiffs.empty()) return docDiffs;
+  if (docDiffs.empty()) return vector<int> { - 1 };
   int currDocId = 0;
   for (int docIdDiff : docDiffs) {
     currDocId += docIdDiff;
@@ -679,6 +692,7 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     // * query has only 1 term
     if (queryTerms.size() == 1) {
         string term = queryTerms.at(0);
+        cout << "??????? The term is " << term << endl;
         // * return the list of differences for the documents containing the
         // * term
 //        cout << "TERM DOC DIFFS ARE..." << endl;
@@ -939,7 +953,7 @@ void loadDocMap() {
 // * unordered_map <int, tuple<string, int, long, long>> docMap;
 string getDocURL(int docID) {
   if (docMap.find(docID) == docMap.end()) {
-    cout << "getDocURL() URL of the document with ID " << docID << "couldn't be found" <<
+    cout << "getDocURL() URL of the document with ID " << docID << " couldn't be found" <<
         endl;
     return "";
   }

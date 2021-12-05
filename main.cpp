@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
-#include<tuple>
+#include <tuple>
 #include <sstream>
 #include <vector>
 #include <cstdlib>
@@ -10,22 +10,21 @@
 #include <cctype>
 using namespace std;
 
-// TODO: RUN AGAIN ON THE COMPLETE DATASET
+const string indexFileName = "data/index.bin";
 //const string indexFileName = "data/Nov_25_test_index.bin";
-//const string indexFileName = "data/index.bin";
-const string indexFileName = "data/small_index.bin";
+//const string indexFileName = "data/small_index.bin";
 
+const string lexiconFileName = "data/lexicon.txt";
 //const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
-//const string lexiconFileName = "data/lexicon.txt";
-const string lexiconFileName = "data/small_lexicon.txt";
+//const string lexiconFileName = "data/small_lexicon.txt";
 
+const string docCollectionFileName = "data/web_data.trec";
 //const string docCollectionFileName = "data/testFile.trec";
-//const string docCollectionFileName = "data/web_data.trec";
-const string docCollectionFileName = "data/small_web_data.trec";
+//const string docCollectionFileName = "data/small_web_data.trec";
 
+const string docMapFilename = "data/docMap.txt";
 //const string docMapFilename = "data/test_docMap.txt";
-//const string docMapFilename = "data/docMap.txt";
-const string docMapFilename = "data/small_docMap.txt";
+//const string docMapFilename = "data/small_docMap.txt";
 
 const string quit = "Q";
 const char comma = ',';
@@ -174,20 +173,24 @@ int main() {
     getUserInput: userInput = getUserInput();
     while (true) {
       if (get<1>(userInput).size() == 1 && get<1>(userInput).at(0) == quit)
-        break;
+        goto done;
 
       // * collect the documents based on the user input
       cout << "\n Fetching the documents..." << endl;
       if (get<0>(userInput) == conjunctive) {
-//        cout << "PROCESSING conjunctive QUERY..." << endl;
         docsFound = processConjunctive(get<1>(userInput));
-        if (docsFound.at(0) == -1)
+        if (docsFound.empty() || docsFound.at(0) == -1) {
+            cout << "Sorry, we couldn't find any good matches for your search." << endl;
             goto getUserInput;
+        }
       }
+
       else if (get<0>(userInput) == disjunctive) {
           docsFound = processDisjunctive(get<1>(userInput));
-          if (docsFound.at(0) == -1)
+          if (docsFound.empty() || docsFound.at(0) == -1) {
+              cout << "Sorry, we couldn't find any good matches for your search." << endl;
               goto getUserInput;
+          }
       }
 
       // input is invalid
@@ -198,7 +201,9 @@ int main() {
 
       cout << "\n\n Result documents are: " << endl;
       printVec(docsFound);
-      cout << endl;
+
+      cout << "\n\n **********";
+
       // * ranking the documents
       // // * rankDocs() : <docID : BM25 score>
       cout << "\n\n Ranking the documents..." << endl;
@@ -206,10 +211,10 @@ int main() {
           docsFound);
 
 //      // *********** debugging area ***********
-      cout << "********* start printing rankedDocs ************" << endl;
-      for (const pair<int, int>& doc : rankedDocs)
-        cout << "docID " << doc.first << " BM25 score " << doc.second << endl;
-      cout << "********* end printing rankedDocs ************" << endl;
+//      cout << "********* start printing rankedDocs ************" << endl;
+//      for (const pair<int, int>& doc : rankedDocs)
+//        cout << "docID " << doc.first << " BM25 score " << doc.second << endl;
+//      cout << "********* end printing rankedDocs ************" << endl;
 //      // *********** debugging area ***********
 
       // * displaying the result
@@ -217,21 +222,24 @@ int main() {
       showTopNResults(get<1>(userInput), rankedDocs, 10);
       cout << endl;
 
-      cout << "Preparing the engine for the next run..." << endl;
+      cout << "\n\n Preparing the engine for the next run..." << endl;
       topNResults = priority_queue<pair <int, int>, vector<pair<int, int>>, docsScoreComparator>();
-//      TODO: think about other things you might need to clear here...
-      // * ask for user input again
+      // * asking the user for input again
       cout << "\n\n\n" << endl;
       userInput = getUserInput();
     }
 
     // close the streams
+    done:
+    cout << "\n closing the streams..." << endl;
     indexReader.close();
     docCollectionStream.close();
+
     cout << "Producing execution time report..." << endl;
     auto stop = chrono::high_resolution_clock::now();
     auto duration = duration_cast <chrono::milliseconds>(stop - start);
     cout << "The execution time of the program is " << duration.count() << endl;
+
     return 0;
 }
 
@@ -250,6 +258,7 @@ pair<string, vector<string>> getUserInput() {
     stringstream queryStream(query);
     while (queryStream >> term)
       queryTermVec.push_back(toLowerCase(term));
+
     return make_pair(mode, queryTermVec);
 }
 
@@ -284,7 +293,7 @@ int rankDoc(const string& term, int docID) {
     int d = getDocLength(docID);
 //    cout << "got the document length " << d << endl;
     K = k1 * ((1 - b) + b * d / dAvg);
-    fDt = log((N - fDt + 0.5) / (fDt + 0.5)) * ((k1 + 1) * fDt / (K + fDt));
+    fDt = log((N - fT + 0.5) / (fT + 0.5)) * ((k1 + 1) * fDt / (K + fDt));
     // * if the document rank is negative, set it to 0
     if (fDt < 0) fDt = 0;
 //    cout << "rankDoc() result " << fDt;
@@ -334,14 +343,14 @@ int getTermDocFreq(const string& term, int docID) {
     long startList = get<0>(lexicon.at(term));
     long endList = get<1>(lexicon.at(term));
 
-    cout << "getTermDocFreq() startList " << startList << endl;
-    cout << "getTermDocFreq() endList " << endList << endl;
+//    cout << "getTermDocFreq() startList " << startList << endl;
+//    cout << "getTermDocFreq() endList " << endList << endl;
 
     long numBytesToRead = endList - startList;
     int currDocId = 0;
     indexReader.seekg(startList, ios::beg);
 
-    cout << "getTermDocFreq() numBytesToRead " << numBytesToRead << endl;
+//    cout << "getTermDocFreq() numBytesToRead " << numBytesToRead << endl;
 
     char * buffer = new char [numBytesToRead];
     indexReader.read(buffer, numBytesToRead);
@@ -352,9 +361,9 @@ int getTermDocFreq(const string& term, int docID) {
 
     if (decodedInvertedList.empty()) return - 1;
 
-    cout << "decodedInvertedList.size() " << decodedInvertedList.size() << endl;
+//    cout << "decodedInvertedList.size() " << decodedInvertedList.size() << endl;
     for (int i = 0; i < decodedInvertedList.size(); i += 2) {
-      cout << "i " << i << endl;
+//      cout << "i " << i << endl;
       currDocId += decodedInvertedList.at(i);
       if (currDocId == docID)
         return decodedInvertedList.at(i + 1);
@@ -425,8 +434,8 @@ vector<int> VBDecodeVec(const vector<char>& encodedData) {
 // TODO: you can use VBDecodeVec instead, perhaps you've missed smt. in this
 //  one OR you can figure out how it works at the first place
 int VBDecodeByte(const char& byteId) {
-    cout << "VBDecodeByte()" << endl;
-    cout << "byteId " << byteId << endl;
+//    cout << "VBDecodeByte()" << endl;
+//    cout << "byteId " << byteId << endl;
     char c;
     int num;
     int p;
@@ -444,7 +453,7 @@ int VBDecodeByte(const char& byteId) {
 //        cout << "VBDecodeByte() while loop" << endl;
     }
     num = (byte.to_ulong())*pow(128, p);
-    cout << "decoded number is " << num << endl;
+//    cout << "decoded number is " << num << endl;
     return num;
 }
 
@@ -534,9 +543,9 @@ void loadLexicon() {
 }
 */
 
+
 // TODO: index <docID, freq, docID, freq>
 vector<int> getTermDocsDiff(const string& term) {
-//    cout << "term requested " << term << endl;
     vector<int> decodedDocList;
     tuple<int, int, int> termData;
 
@@ -555,10 +564,11 @@ vector<int> getTermDocsDiff(const string& term) {
 
     long numBytesToRead = endList - startList;
 
-    cout << "\n getTermDocsDiff()" << endl;
-    cout << "start List " << startList << endl;
-    cout << "end List " << endList << endl;
-    cout << "numBytesToRead " << numBytesToRead << endl;
+//    cout << "\n getTermDocsDiff()" << endl;
+//    cout << "term requested " << term << endl;
+//    cout << "start List " << startList << endl;
+//    cout << "end List " << endList << endl;
+//    cout << "numBytesToRead " << numBytesToRead << endl;
 
     indexReader.seekg(startList, ios::beg);
     char * buffer = new char [numBytesToRead];
@@ -566,15 +576,16 @@ vector<int> getTermDocsDiff(const string& term) {
 
     vector<char> encodedInvertedList(buffer, buffer + numBytesToRead);
 
+    if (encodedInvertedList.empty()) return decodedDocList;
+
     vector<int> decodedInvertedList = VBDecodeVec(encodedInvertedList);
 
-    cout << "decodedInvertedList.size() " << decodedInvertedList.size() << endl;
-
-    if (decodedInvertedList.empty()) return decodedDocList;
+//    cout << "decodedInvertedList.size() " << decodedInvertedList.size() << endl;
+//
 
     for (int i = 0; i < decodedInvertedList.size(); i += 2) {
-        cout << "i " << i << endl;
-        cout << decodedInvertedList.at(i) << endl;
+//        cout << "i " << i << endl;
+//        cout << decodedInvertedList.at(i) << endl;
         decodedDocList.push_back(decodedInvertedList.at(i));
     }
 
@@ -636,13 +647,13 @@ vector<int> processDisjunctive (const vector<string>& query) {
     return vecResult;
 
   for (const string& word : query) {
-      cout << "###### term " << word << endl;
+//      cout << "###### term " << word << endl;
     docs = getTermDocsDiff(word);
-      cout << "@@@@@@ processDisjunctive " << "docIdDiff " << endl;
+//      cout << "@@@@@@ processDisjunctive " << "docIdDiff " << endl;
       printVec(docs);
       for (int docIdDiff : docs) {
       currDocId += docIdDiff;
-      cout << "$$$$$$ processDisjunctive " << "currDocId " << currDocId << endl;
+//      cout << "$$$$$$ processDisjunctive " << "currDocId " << currDocId << endl;
       result.insert(currDocId);
     }
     currDocId = 0;
@@ -692,7 +703,7 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     // * query has only 1 term
     if (queryTerms.size() == 1) {
         string term = queryTerms.at(0);
-        cout << "??????? The term is " << term << endl;
+//        cout << "??????? The term is " << term << endl;
         // * return the list of differences for the documents containing the
         // * term
 //        cout << "TERM DOC DIFFS ARE..." << endl;
@@ -728,8 +739,8 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     string term2 = get<0>(termListMap.top());
     termListMap.pop();
 
-    cout << "term1 " << term1 << endl;
-    cout << "term2 " << term2 << endl;
+//    cout << "term1 " << term1 << endl;
+//    cout << "term2 " << term2 << endl;
     // TODO: the logic below can be substituted with a call to getDocsFromDocDiffs(getTermDocsDiff(term));
     // * intersect the first 2 lists
 
@@ -774,7 +785,6 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
 //    // decode both lists
 //    vector<int> decodedInvertedListOne = VBDecodeVec(encodedInvertedList1);
 //    vector<int> decodedInvertedListTwo = VBDecodeVec(encodedInvertedList2);
-// TODO: changing the approach start
 
     vector<int> listOneDocs = getDocsFromDocDiffs(getTermDocsDiff(term1));
     vector<int> listTwoDocs = getDocsFromDocDiffs(getTermDocsDiff(term2));
@@ -782,15 +792,15 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
     int firstListPtr = 0;
     int secListPtr = 0;
 
-    cout << "listOneDocs IS of the size: " << listOneDocs.size() << endl;
-    printVec(listOneDocs);
-    cout << "listTwoDocs size: " << listTwoDocs.size() << endl;
-    printVec(listTwoDocs);
+//    cout << "listOneDocs IS of the size: " << listOneDocs.size() << endl;
+//    printVec(listOneDocs);
+//    cout << "listTwoDocs size: " << listTwoDocs.size() << endl;
+//    printVec(listTwoDocs);
 
     while (firstListPtr < listOneDocs.size() &&
            secListPtr < listTwoDocs.size()) {
-        cout << "firstListPtr " << firstListPtr << endl;
-        cout << "secListPtr " << secListPtr << endl;
+//        cout << "firstListPtr " << firstListPtr << endl;
+//        cout << "secListPtr " << secListPtr << endl;
 //        cout << "List one docID " << listOneDocs.at(firstListPtr) << endl;
 //        cout << "List two docID " << listTwoDocs.at(secListPtr) << endl;
         // case 1: we've found a common document, store the result and move both pointers forward
@@ -811,10 +821,10 @@ vector<int> processConjunctive(const vector<string>& queryTerms) {
             // move the secListPtr pointer forward until >= docID is found skipping over the frequencies
         else secListPtr++;
     }
-
-    cout << "\n\n\n ***** intersection of the first and second lists ***** \n\n\n" << endl;
-    printVec(currIntersection);
-    cout << "The size of the current intersection is " << currIntersection.size() << endl;
+//    cout << "PROCESSED 2 TERMS" << endl;
+//    cout << "\n\n\n ***** intersection of the first and second lists ***** \n\n\n" << endl;
+//    printVec(currIntersection);
+//    cout << "The size of the current intersection is " << currIntersection.size() << endl;
     // queue being empty means we had only 2 terms / lists to begin with
     if (termListMap.empty()) return currIntersection;
     // * keep intersecting lists until we've done it for all query terms
@@ -914,7 +924,7 @@ vector<int> VBDecodeFile(string filename) {
             byte = bitset<8>(c);
         }
         num += (byte.to_ulong())*pow(128, p);
-        cout << num << endl;
+//        cout << num << endl;
         result.push_back(num);
     }
     return result;
@@ -1080,14 +1090,14 @@ void showTopNResults(const vector<string>& query, const vector<pair<int,
 
   // * displaying result to the user...
   for (const pair<int, int>& doc : docsToShow) {
-    cout << "The document ID is " << doc.first << endl;
+    cout << "\n The document ID is " << doc.first << endl;
     cout << endl;
-    cout << "The BM25 score is " << doc.second << endl;
+    cout << "\n The BM25 score is " << doc.second << endl;
     cout << endl;
-    cout << "The document URL is " << getDocURL(doc.first) << endl;
+    cout << "\n The document URL is " << getDocURL(doc.first) << endl;
     cout << endl;
     vector<string> snippets = generateSnippet(doc.first, query);
-    cout << "The document snippet is: " << endl;
+    cout << "\n The document snippet is: " << endl;
     for (const string& subsnippet : snippets)
       cout << subsnippet << "... ";
     cout << endl;

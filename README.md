@@ -241,10 +241,106 @@ represented as an unordered map, to the ```index.txt``` file.
 
 **Program 4: query generator**
 
+**Loading the data:**
+The query generator program takes ```index.bin``` [size: ], ```lexicon.
+txt``` [size: ], ```web_data.trec``` [size: ], and ```docMap.txt``` [size: ] 
+files as inputs. I'm creating ```ifstreams``` pointing to each of these 
+files. However, only ```lexicon.txt``` and ```docMap.txt``` are getting 
+loaded into memory. I will describe the structure of each of these files below. 
+
+The purpose of the lexicon is to give us access to inverted lists within the 
+index file, as well as to provide us the term frequency within the 
+collection to be used by ```BM25``` ranking function. The ```lexicon.txt``` 
+file has the following structure: ```[term : indexStartOffset, 
+indexEndOffset, termCollectionFrequency]```. Index gets loaded into memory using 
+```loadLexicon()``` function. In-memory version of the lexicon is represented 
+as unordered map with term being the key and other fields as values. 
+
+The second data structure that we are loading into memory is the ```docMap.
+txt```. The purpose of the docMap file is to provide us with a URL, document 
+size, as well as the document location within the collection. ```docMap.
+txt``` has the following structure: ```[docID : URL, termCount, 
+webDataStartOffset, webDataEndOffset]```. In-memory version of the docMap is 
+represented as unordered map with docID being the key and other fields as values.
+
+**Getting the user input**
+The first part of the query generator is ```getUserInput()``` function that 
+asks the user to choose the search mode, conjunctive vs disjunctive, and 
+enter the search query. The query string is then split up into separate terms
+based on spaces and returned as a vector of strings. 
+
+**Retrieving relevant documents**
+After the user input is being obtained from the user, based on the specified 
+search mode, we perform conjunctive or disjunctive search by calling 
+```processConjunctive()``` and ```processDisjunctive()``` functions 
+respectively. If the user has entered an invalid search query, I'm printing 
+an error message and looping back to the ```getUserInput()``` function. 
+
+```processConjunctive()``` function takes vector of strings, representing a 
+query, as input and returns a vector of integers with IDs of found documents 
+as output. The ```processConjunctive()``` function has the following implementation: 
+First, it creates a ```termListMap```, which is a min heap mapping term to 
+its respective inverted list length, ```[term : invertedListLength]```. This 
+map will sort the query terms in ascending order of their inverted list 
+lengths. 
+
+After the query terms have been sorted, the function branches based on the 
+number of  terms the user has entered. If the user has entered a single 
+query term, the function calls ```getDocsFromDocDiffs(getTermDocsDiff(term))```
+functions which will retrieve and return the documents for a given query term. 
+
+If the user has entered 2 or more terms, the function will be loading 
+inverted lists for the corresponding terms into memory and finding the 
+document intersection between those lists, one term at a time until the min 
+heap with the query terms is empty. 
+
+The documents for a particular inverted list are being retrieved using 
+```getDocsFromDocDiffs(getTermDocsDiff(term))``` functions which also 
+are calling ```VBDecodeVec()``` function which will VarByte decode inverted 
+lists for the corresponding terms. 
 
 
-**Future improvements**
+```processDisjunctive()``` function is calling ```getDocsFromDocDiffs
+(getTermDocsDiff(term))``` functions to get the documents from the inverted 
+lists for each query term and returning these documents. 
 
-The first improvement that I'm planning to incorporate in the Assignment 3 is data compression. I'm planning to compress all three structures: inverted index, lexicon, and URLs-num_terms mapping using the *Variable Bytes compression* technique. 
 
-I'm also planning to explore data storage in a no_SQL database, such as Mongo DB, rather than my SSD. 
+**Ranking the documents**
+After we've retrieved relevant documents, our next step is to rank them 
+using ```rankDocs()``` function, which takes user query and a vector of 
+docIDs as inputs and returns a vector of tuples containing ```[docID : 
+docRank]``` mapping for each relevant document found. 
+
+```rankDocs()``` function function is iterating over all docIDs and all query 
+terms, calling ```rankDoc()``` on each term and a corresponding document and 
+calculating that document's rank.
+
+```rankDoc()``` function is ranking takes term and docID as parameters and 
+returns BM25 score for that document. It also uses auxiliary functions such 
+as ```getTermDocFreq()```, ```getTermColFreq()``` and ```getDocLength()``` 
+to retrieve variables needed for BM25 measure from in-memory data structures. 
+
+**Returning result documents with their corresponding snippets** 
+
+After ranked documents have been returned by the ```rankDoc()``` function, 
+we are calling ```showTopNResults()``` on those documents, passing the 
+vector of docIDs and the number of documents we'd like to show as input parameters.
+```showTopNResults()``` function pushes all relevant documents onto the max 
+heap. Priority of the documents within the max heap is based on BM25 score 
+of the document. Then I'm simply popping ```numResultsToShow``` documents 
+from the heap. 
+
+The next part of ```showTopNResults()``` function is responsible for 
+displaying the URL of a document and calling ```generateSnippet()``` 
+function to display a document snippet to the user. 
+
+```generateSnippet()``` function is implementing a slightly simplified version 
+of a snippet generation algorithm presented in the paper *"Fast generation 
+of result snippets in web search"* by Andrew Turpin. First we are calling 
+```breakDocIntoSentences()``` function which takes a document ID as input and 
+returns a vector of strings containing document sentences. Then it is 
+ranking each sentence in the document using ```rankSnippet()``` function and 
+pushing the sentence onto the max heap called ```snippets```. Once each 
+sentence has been ranked, the function pops the first ```snippetsToShow``` 
+sentences off the heap and returns a vector of strings containing those 
+sentences. These sentences are getting displayed to the user as a document snippet.

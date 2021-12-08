@@ -198,7 +198,18 @@ Job Wall-clock time: 03:24:11
 Memory Utilized: 50.00 GB
 Memory Efficiency: 78.13% of 64.00 GB
 
-**Program 2: building inverted index and a lexicon**
+
+**Program 2: cleaning intermediate postings file**
+
+My second program is written in C++. It takes intermediate postings file 
+produced by the previous program as its input and cleans the file by 
+removing all non-printing characters from it. It also cleans the file by 
+splitting up postings which contain multiple terms separated by a space into 
+separate postings. All the cleaning work is done in the ```cleanPostings()``` 
+function. After cleaning each posting, the function writes the clean version 
+of the posting to the disk. 
+
+**Program 3: building inverted index and a lexicon**
 
 Initially I've written index builder program in Java. However, when 
 writing the query processor in C++, I was unable to decompress VarByte 
@@ -224,8 +235,13 @@ to the index file for a particular term, we insert an entry into the lexicon
 in the following format: ```< term : indexStartOffset, indexEndOffset, 
 termCollectionFrequency >```. 
 
-Finally, ```writeLexicon()``` function will write an in memory lexicon 
-represented as an unordered map to the ```index.txt``` file. 
+Finally, ```writeLexicon()``` function will write an in memory lexicon,
+represented as an unordered map, to the ```index.txt``` file. 
+
+
+**Program 4: query generator**
+
+
 
 **Future improvements**
 

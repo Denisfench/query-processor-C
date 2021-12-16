@@ -11,18 +11,17 @@
 using namespace std;
 
 // original dataset
-//const string indexFileName = "data/dec13_index.bin";
+const string indexFileName = "data/dec13_index.bin";
 // 10M lines subset of the dataset
-const string indexFileName = "data/10M_index.bin";
+//const string indexFileName = "data/10M_index.bin";
 
-//const string lexiconFileName = "data/dec13_lexicon.txt";
-const string lexiconFileName = "data/10M_lexicon.txt";
+const string lexiconFileName = "data/dec13_lexicon.txt";
+//const string lexiconFileName = "data/10M_lexicon.txt";
 
-//const string docCollectionFileName = "data/web_data.trec";
-const string docCollectionFileName = "data/10M_web_data.trec";
-
-//const string docMapFilename = "data/docMap.txt";
-const string docMapFilename = "data/10M_docMap.txt";
+const string docCollectionFileName = "data/web_data.trec";
+//const string docCollectionFileName = "data/10M_web_data.trec";
+const string docMapFilename = "data/docMap.txt";
+//const string docMapFilename = "data/10M_docMap.txt";
 
 const string quit = "Q";
 const char comma = ',';
@@ -331,16 +330,6 @@ int getTermColFreq(const string& term) {
       return - 1;
     }
   return get<2>(lexicon[term]);
-}
-
-
-vector<char> read_com(ifstream& infile) {
-    char c;
-    vector<char> result;
-    while(infile.get(c)){
-        result.push_back(c);
-    }
-    return result;
 }
 
 

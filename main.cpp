@@ -10,19 +10,33 @@
 #include <cctype>
 using namespace std;
 
-const string indexFileName = "data/index.bin";
+// original dataset
+//const string indexFileName = "data/dec13_index.bin";
+// 10M lines subset of the dataset
+const string indexFileName = "data/10M_index.bin";
+//const string indexFileName = "data/last_index.bin";
+//const string indexFileName = "data/index.bin";
 //const string indexFileName = "data/Nov_25_test_index.bin";
 //const string indexFileName = "data/small_index.bin";
 
-const string lexiconFileName = "data/lexicon.txt";
+//const string lexiconFileName = "data/dec13_lexicon.txt";
+const string lexiconFileName = "data/10M_lexicon.txt";
+//const string lexiconFileName = "data/last_lexicon.txt";
+//const string lexiconFileName = "data/lexicon.txt";
 //const string lexiconFileName = "data/Nov_25_test_lexicon.txt";
 //const string lexiconFileName = "data/small_lexicon.txt";
 
-const string docCollectionFileName = "data/web_data.trec";
+//const string docCollectionFileName = "data/web_data.trec";
+const string docCollectionFileName = "data/10M_web_data.trec";
+//const string docCollectionFileName = "data/latest_web_data.trec";
+//const string docCollectionFileName = "data/web_data.trec";
 //const string docCollectionFileName = "data/testFile.trec";
 //const string docCollectionFileName = "data/small_web_data.trec";
 
-const string docMapFilename = "data/docMap.txt";
+//const string docMapFilename = "data/docMap.txt";
+const string docMapFilename = "data/10M_docMap.txt";
+//const string docMapFilename = "data/latest_docMap.txt";
+//const string docMapFilename = "data/docMap.txt";
 //const string docMapFilename = "data/test_docMap.txt";
 //const string docMapFilename = "data/small_docMap.txt";
 
@@ -34,7 +48,10 @@ const char newline = '\n';
 // * N and dAvg below are being retrieved from the docMetadataFile
 // * N is the number of documents in the collection
 // * dAvg is the average length of the document
-const int N = 3213834;
+// TODO: read N and dAvg from the docMetadata file
+const int N = 108678;
+//const int N = 3213834;
+//const int dAvg = 104675;
 const int dAvg = 302;
 const float k1 = 2;
 const float b = 0.75;
@@ -68,7 +85,7 @@ struct docsScoreComparator {
 // we are subtracting 1 from indexStartOffset to account for an open range
 unordered_map <string, tuple<long, long, int>> lexicon;
 
-// * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
+// * < docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
 unordered_map <int, tuple<string, int, long, long>> docMap;
 
 priority_queue<pair <int, int>, vector<pair<int, int>>, docsScoreComparator>
@@ -150,6 +167,9 @@ int main() {
 //  for (char letter : docText)
 //    cout << letter;
   // ********** VB decode debugging area ***************
+//  cout << "START..." << endl;
+//  loadDocMap();
+//  ****** Production area **********
     cout << "Starting the execution..." << endl;
     auto start = chrono::high_resolution_clock::now();
 
@@ -239,12 +259,13 @@ int main() {
     auto stop = chrono::high_resolution_clock::now();
     auto duration = duration_cast <chrono::milliseconds>(stop - start);
     cout << "The execution time of the program is " << duration.count() << endl;
-
     return 0;
 }
 
 
 pair<string, vector<string>> getUserInput() {
+    indexReader.clear();
+    docCollectionStream.clear();
     vector<string> queryTermVec;
     string query;
     cout << "Please enter your query or \"Q\" to stop the engine: ";
@@ -266,7 +287,8 @@ pair<string, vector<string>> getUserInput() {
 // * <docID : <URL, termCount, webDataStartOffset, webDataEndOffset> >
 int getDocLength(int docID) {
   if (docMap.find(docID) == docMap.end()) {
-    cout << "getDocLength() docID wasn't found in the document map..." << endl;
+//    cout << "getDocLength() docID " << docID << " wasn't found in the "
+//                                                "document map..." << endl;
     return -1;
   }
   return get<1>(docMap[docID]);
@@ -291,6 +313,8 @@ int rankDoc(const string& term, int docID) {
     int fT = getTermColFreq(term);
 //    cout << "got the term collection freq  " << fT << endl;
     int d = getDocLength(docID);
+    // d being - 1 implies that we weren't able to retrieve the document length
+    if (d == - 1) return -1;
 //    cout << "got the document length " << d << endl;
     K = k1 * ((1 - b) + b * d / dAvg);
     fDt = log((N - fT + 0.5) / (fT + 0.5)) * ((k1 + 1) * fDt / (K + fDt));
@@ -310,23 +334,31 @@ vector<pair<int, int>> rankDocs(const vector<string>& query, const
   vector<pair<int, int>> result;
   if (docIds.empty()) return result;
   int currDocScore = 0;
+  int docRank;
   // * rank every document that we've found
   for (int docId : docIds) {
+      // if the docID exceeds what we have in our collection
+      if (docId < 0 || docId > N) continue;
 //    cout << "docID " << docId << endl;
     // * rank each document on every term in the query
     for (const string& term : query) {
 //      cout << "\n\n\n term " << term << " Rank : " << rankDoc(term, docId) <<
 //          endl;
 //      cout << "\n\n\n";
-      currDocScore += rankDoc(term, docId);
+      docRank = rankDoc(term, docId);
+//      cout << "term " << term << " docId " << docId << " docRank " << docRank <<
+//      endl;
+      if (docRank ==  - 1) continue;
+      currDocScore += docRank;
     }
     result.emplace_back(make_pair(docId, currDocScore));
     currDocScore = 0;
   }
-//  cout << "returning result " << endl;
-//  for (pair<int, int> ranking : result)
-//    cout << "docId " << ranking.first << "rank " << ranking.second << endl;
-
+  /*
+  cout << "returning result " << endl;
+  for (pair<int, int> ranking : result)
+    cout << "docId " << ranking.first << "rank " << ranking.second << endl;
+*/
   return result;
 }
 
@@ -471,7 +503,6 @@ void loadLexicon() {
     int numTerms;
 
     while (getline(lexiconStream, line)) {
-//        cout << "line " << line << endl;
         stringstream lineStream(line);
         getline (lineStream, term, '\t');
 //        lineStream >> term;
@@ -486,7 +517,6 @@ void loadLexicon() {
         // ******* Debugging ********
         lexicon.insert(make_pair(term, make_tuple(startList, endList, numTerms)));
     }
-
     lexiconStream.close();
 }
 /*
@@ -650,7 +680,7 @@ vector<int> processDisjunctive (const vector<string>& query) {
 //      cout << "###### term " << word << endl;
     docs = getTermDocsDiff(word);
 //      cout << "@@@@@@ processDisjunctive " << "docIdDiff " << endl;
-      printVec(docs);
+//      printVec(docs);
       for (int docIdDiff : docs) {
       currDocId += docIdDiff;
 //      cout << "$$$$$$ processDisjunctive " << "currDocId " << currDocId << endl;
@@ -952,6 +982,15 @@ void loadDocMap() {
     lineStream >> termCount;
     lineStream >> webDataStartOffset;
     lineStream >> webDataEndOffset;
+    /*
+    cout << "***********" << endl;
+    cout << "url " << url << endl;
+    cout << "docID " << docID << endl;
+    cout << "termCount " << termCount << endl;
+    cout << "webDataStartOffset " << webDataStartOffset << endl;
+    cout << "webDataEndOffset " << webDataEndOffset << endl;
+    cout << "***********" << endl;
+     */
     docMap.insert(make_pair(docID, make_tuple(url, termCount,
                                               webDataStartOffset, webDataEndOffset)));
   }
